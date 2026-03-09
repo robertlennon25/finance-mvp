@@ -18,7 +18,7 @@ export function getSupabaseStorageBucket() {
 }
 
 export function getRailwayWorkerUrl() {
-  return process.env.RAILWAY_WORKER_URL || "";
+  return (process.env.RAILWAY_WORKER_URL || "").replace(/\/+$/, "");
 }
 
 export function getWorkerSharedSecret() {

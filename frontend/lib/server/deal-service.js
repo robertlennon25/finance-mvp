@@ -45,15 +45,16 @@ export async function getDealDetail(dealId, user = null) {
   const workbookPath = await getWorkbookPath(dealId);
   const workbookSummary = await getWorkbookSummary(dealId);
   const documents = await getDealDocuments(dealId);
+  const reviewExists = (await exists(reviewPath)) || Boolean(await getSupabaseArtifactJson(dealId, `${dealId}_review_payload.json`));
+  const manifest = (await exists(manifestPath))
+    ? JSON.parse(await fs.readFile(manifestPath, "utf-8"))
+    : (await getSupabaseArtifactJson(dealId, `${dealId}_manifest.json`)) ?? { document_count: documents.length, documents: [] };
 
-  if (!documents.length && !(await exists(reviewPath)) && !(await exists(manifestPath))) {
+  if (!documents.length && !reviewExists && !manifest) {
     return null;
   }
 
-  const manifest = (await exists(manifestPath))
-    ? JSON.parse(await fs.readFile(manifestPath, "utf-8"))
-    : { document_count: documents.length, documents: [] };
-  const workspace = (await exists(reviewPath)) ? await getDealWorkspace(dealId, user) : null;
+  const workspace = reviewExists ? await getDealWorkspace(dealId, user) : null;
 
   return {
     dealId,
@@ -83,15 +84,16 @@ export async function getDealWorkspace(dealId, user = null) {
   const workbookPath = await getWorkbookPath(dealId);
   const overrides = await getDealOverrides(dealId, user);
   const extractionMetadata = await getExtractionMetadata(dealId);
-
-  if (!(await exists(reviewPath))) {
-    return null;
-  }
-
-  const review = JSON.parse(await fs.readFile(reviewPath, "utf-8"));
+  const review = (await exists(reviewPath))
+    ? JSON.parse(await fs.readFile(reviewPath, "utf-8"))
+    : await getSupabaseArtifactJson(dealId, `${dealId}_review_payload.json`);
   const manifest = (await exists(manifestPath))
     ? JSON.parse(await fs.readFile(manifestPath, "utf-8"))
-    : { document_count: 0, documents: [] };
+    : (await getSupabaseArtifactJson(dealId, `${dealId}_manifest.json`)) ?? { document_count: 0, documents: [] };
+
+  if (!review) {
+    return null;
+  }
 
   return {
     dealId,
@@ -367,25 +369,25 @@ export async function getDealDocumentResponse(dealId, requestedFileName) {
 
 export async function getDealWorkbookResponse(dealId) {
   const workbookPath = await getWorkbookPath(dealId);
-  if (!workbookPath) {
-    return null;
+  if (workbookPath) {
+    const body = await fs.readFile(workbookPath);
+    return {
+      body,
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${path.basename(workbookPath)}"`
+      }
+    };
   }
 
-  const body = await fs.readFile(workbookPath);
-  return {
-    body,
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${path.basename(workbookPath)}"`
-    }
-  };
+  return getSupabaseWorkbookResponse(dealId);
 }
 
 export async function getExtractionMetadata(dealId) {
   const metadataPath = path.join(NORMALIZED_ROOT, `${dealId}_extraction_metadata.json`);
   if (!(await exists(metadataPath))) {
-    return null;
+    return getSupabaseArtifactJson(dealId, `${dealId}_extraction_metadata.json`);
   }
 
   return JSON.parse(await fs.readFile(metadataPath, "utf-8"));
@@ -418,7 +420,7 @@ export async function getDealMeta(dealId) {
 export async function getWorkbookSummary(dealId) {
   const summaryPath = path.join(OUTPUTS_ROOT, `${dealId}_summary.json`);
   if (!(await exists(summaryPath))) {
-    return null;
+    return getSupabaseArtifactJson(dealId, `${dealId}_summary.json`);
   }
 
   return JSON.parse(await fs.readFile(summaryPath, "utf-8"));
@@ -482,14 +484,18 @@ async function syncDealToSupabase({ dealId, displayName, userId, documents }) {
   }
 
   const bucket = getSupabaseStorageBucket();
-  await upsertSupabaseDeal(supabase, {
-    deal_id: dealId,
-    owner_user_id: userId,
-    display_name: displayName,
-    visibility: "private",
-    is_example: false,
-    source: "upload",
-  });
+  await withSupabaseRetries(
+    () =>
+      upsertSupabaseDeal(supabase, {
+        deal_id: dealId,
+        owner_user_id: userId,
+        display_name: displayName,
+        visibility: "private",
+        is_example: false,
+        source: "upload",
+      }),
+    `save deal metadata for ${dealId}`
+  );
 
   for (const document of documents) {
     const storagePath = buildSupabaseStoragePath({
@@ -498,32 +504,38 @@ async function syncDealToSupabase({ dealId, displayName, userId, documents }) {
       fileName: document.fileName,
     });
 
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(storagePath, document.buffer, {
-        contentType: document.mimeType,
-        upsert: true,
-      });
+    const { error: uploadError } = await withSupabaseRetries(
+      () =>
+        supabase.storage.from(bucket).upload(storagePath, document.buffer, {
+          contentType: document.mimeType,
+          upsert: true,
+        }),
+      `upload ${document.fileName} to Supabase Storage`
+    );
 
     if (uploadError) {
       throw new Error(`Failed to upload ${document.fileName} to Supabase Storage: ${uploadError.message}`);
     }
 
-    const { error: documentError } = await supabase.from("documents").upsert(
-      {
-        deal_id: dealId,
-        owner_user_id: userId,
-        file_name: document.fileName,
-        mime_type: document.mimeType,
-        size_bytes: document.sizeBytes,
-        sha256: document.sha256,
-        storage_bucket: bucket,
-        storage_path: storagePath,
-        source: "upload",
-      },
-      {
-        onConflict: "deal_id,storage_bucket,storage_path",
-      }
+    const { error: documentError } = await withSupabaseRetries(
+      () =>
+        supabase.from("documents").upsert(
+          {
+            deal_id: dealId,
+            owner_user_id: userId,
+            file_name: document.fileName,
+            mime_type: document.mimeType,
+            size_bytes: document.sizeBytes,
+            sha256: document.sha256,
+            storage_bucket: bucket,
+            storage_path: storagePath,
+            source: "upload",
+          },
+          {
+            onConflict: "deal_id,storage_bucket,storage_path",
+          }
+        ),
+      `save document metadata for ${document.fileName}`
     );
 
     if (documentError) {
@@ -548,11 +560,15 @@ async function appendSupabasePipelineRun(dealId, payload) {
     return;
   }
 
-  const { error } = await supabase.from("pipeline_runs").insert({
-    deal_id: dealId,
-    ...payload,
-    triggered_by: "frontend",
-  });
+  const { error } = await withSupabaseRetries(
+    () =>
+      supabase.from("pipeline_runs").insert({
+        deal_id: dealId,
+        ...payload,
+        triggered_by: "frontend",
+      }),
+    `save pipeline run metadata for ${dealId}`
+  );
 
   if (error) {
     throw new Error(`Failed to save pipeline run metadata: ${error.message}`);
@@ -596,6 +612,44 @@ function buildWorkerHeaders() {
 
 function isRailwayWorkerConfigured() {
   return Boolean(getRailwayWorkerUrl());
+}
+
+async function withSupabaseRetries(fn, actionLabel, attempts = 3) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts || !isRetryableSupabaseError(error)) {
+        break;
+      }
+      const delayMs = attempt * 600;
+      console.warn(`Retrying Supabase operation: ${actionLabel} (attempt ${attempt + 1}/${attempts})`);
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+}
+
+function isRetryableSupabaseError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    message.includes("timed out") ||
+    message.includes("timeout") ||
+    message.includes("connection") ||
+    message.includes("network") ||
+    message.includes("fetch failed") ||
+    message.includes("socket") ||
+    message.includes("econnreset") ||
+    message.includes("service unavailable")
+  );
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function getSupabaseDocuments(dealId) {
@@ -646,9 +700,56 @@ async function getSupabaseDocumentResponse(document) {
   };
 }
 
+async function getSupabaseArtifactJson(dealId, fileName) {
+  const response = await getSupabaseArtifactResponse(dealId, fileName);
+  if (!response) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(response.body.toString("utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+async function getSupabaseWorkbookResponse(dealId) {
+  return getSupabaseArtifactResponse(dealId, `${dealId}_valuation_model.xlsx`, {
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    disposition: `attachment; filename="${dealId}_valuation_model.xlsx"`,
+  });
+}
+
+async function getSupabaseArtifactResponse(dealId, fileName, options = {}) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const bucket = getSupabaseStorageBucket();
+  const storagePath = buildSupabaseArtifactPath(dealId, fileName);
+  const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+  if (error || !data) {
+    return null;
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return {
+    body: Buffer.from(arrayBuffer),
+    headers: {
+      "Content-Type": options.contentType || "application/json",
+      "Content-Disposition": options.disposition || `inline; filename="${fileName}"`,
+    },
+  };
+}
+
 function buildSupabaseStoragePath({ userId, dealId, fileName }) {
   const owner = userId || "anonymous";
   return `private/${owner}/${dealId}/${fileName}`;
+}
+
+function buildSupabaseArtifactPath(dealId, fileName) {
+  return `artifacts/${dealId}/${fileName}`;
 }
 
 async function getWorkbookPath(dealId) {

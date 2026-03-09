@@ -33,6 +33,7 @@ export async function POST(request, { params }) {
     const result = await runDealPipeline(params.dealId, { phase, maxChunks });
     return NextResponse.json({ ok: true, phase, ...result });
   } catch (error) {
+    console.error("Pipeline route failed", error);
     return NextResponse.json(
       { error: error?.message || "Pipeline execution failed." },
       { status: 500 }
@@ -54,6 +55,7 @@ export async function GET(request) {
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
+    console.error("Pipeline status route failed", error);
     return NextResponse.json(
       { error: error?.message || "Failed to fetch pipeline status." },
       { status: 500 }
