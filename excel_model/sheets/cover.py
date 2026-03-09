@@ -40,6 +40,7 @@ def build_cover_sheet(ctx) -> None:
         "cover",
         "historicals_input",
         "assumptions",
+        "debt_setup",
         "sources_uses",
         "operating_model",
         "debt_schedule",
@@ -47,6 +48,7 @@ def build_cover_sheet(ctx) -> None:
         "valuation",
         "sensitivities",
         "checks",
+        "dense_model",
     ]
     for idx, tab in enumerate(tabs, start=21):
         ws.cell(row=idx, column=1, value=tab)

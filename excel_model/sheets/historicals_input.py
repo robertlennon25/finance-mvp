@@ -53,10 +53,13 @@ def build_historicals_input_sheet(ctx) -> None:
         ("Shares Outstanding", "shares_outstanding", ctx.model_inputs["inputs"]["shares_outstanding"], "#,##0"),
         ("Entry EBITDA", "purchase_ebitda", ctx.model_inputs["inputs"]["purchase_ebitda"], "#,##0"),
         ("Entry Multiple", "entry_multiple", ctx.model_inputs["inputs"]["entry_multiple"], "0.0x"),
+        ("Debt-Free Acquisition (0/1)", "debt_free_acquisition", ctx.model_inputs["inputs"]["debt_free_acquisition"], "0"),
         ("Existing Debt", "existing_debt", ctx.model_inputs["inputs"]["existing_debt"], "#,##0"),
         ("Existing Cash", "existing_cash", ctx.model_inputs["inputs"]["existing_cash"], "#,##0"),
         ("Transaction Fee %", "transaction_fee_pct", ctx.model_inputs["inputs"]["transaction_fee_pct"], "0.0%"),
         ("Financing Fee %", "financing_fee_pct", ctx.model_inputs["inputs"]["financing_fee_pct"], "0.0%"),
+        ("OID %", "oid_pct", ctx.model_inputs["inputs"]["oid_pct"], "0.0%"),
+        ("Management Rollover %", "management_rollover_pct", ctx.model_inputs["inputs"]["management_rollover_pct"], "0.0%"),
         ("Minimum Cash Balance", "min_cash_balance", ctx.model_inputs["inputs"]["min_cash_balance"], "#,##0"),
     ]
     for label, key, value, fmt in numeric_rows:
@@ -71,6 +74,9 @@ def build_historicals_input_sheet(ctx) -> None:
         ("Senior Debt / EBITDA", "senior_debt_multiple", ctx.model_inputs["inputs"]["senior_debt_multiple"], "0.0x"),
         ("Sub Debt / EBITDA", "sub_debt_multiple", ctx.model_inputs["inputs"]["sub_debt_multiple"], "0.0x"),
         ("Senior Interest Rate", "senior_interest_rate", ctx.model_inputs["inputs"]["senior_interest_rate"], "0.0%"),
+        ("Senior Term %", "senior_term_pct", ctx.model_inputs["inputs"]["senior_term_pct"], "0.0%"),
+        ("Senior TLA %", "senior_tla_pct", ctx.model_inputs["inputs"]["senior_tla_pct"], "0.0%"),
+        ("Senior TLB %", "senior_tlb_pct", ctx.model_inputs["inputs"]["senior_tlb_pct"], "0.0%"),
         ("Sub Interest Rate", "sub_interest_rate", ctx.model_inputs["inputs"]["sub_interest_rate"], "0.0%"),
         ("Sub PIK Rate", "sub_pik_rate", ctx.model_inputs["inputs"]["sub_pik_rate"], "0.0%"),
         ("Revolver Rate", "revolver_interest_rate", ctx.model_inputs["inputs"]["revolver_interest_rate"], "0.0%"),

@@ -13,6 +13,8 @@ from excel_model.sheets import (
     build_checks_sheet,
     build_cover_sheet,
     build_debt_schedule_sheet,
+    build_debt_setup_sheet,
+    build_dense_model_sheet,
     build_historicals_input_sheet,
     build_operating_model_sheet,
     build_returns_sheet,
@@ -52,6 +54,7 @@ def write_workbook(
 
     build_historicals_input_sheet(ctx)
     build_assumptions_sheet(ctx)
+    build_debt_setup_sheet(ctx)
     build_sources_uses_sheet(ctx)
     build_operating_model_sheet(ctx)
     build_debt_schedule_sheet(ctx)
@@ -60,6 +63,7 @@ def write_workbook(
     build_sensitivities_sheet(ctx)
     build_checks_sheet(ctx)
     build_cover_sheet(ctx)
+    build_dense_model_sheet(ctx)
 
     for sheet in wb.worksheets:
         autosize_columns(sheet)
