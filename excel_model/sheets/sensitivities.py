@@ -7,9 +7,7 @@ def build_sensitivities_sheet(ctx) -> None:
     ws = ctx.wb.create_sheet("sensitivities")
     add_header(ws, "Sensitivities")
 
-    base_wacc = float(ctx.model_inputs["inputs"]["risk_free_rate"]) + (
-        float(ctx.model_inputs["inputs"]["beta"]) * float(ctx.model_inputs["inputs"]["market_risk_premium"])
-    )
+    base_wacc = float(ctx.python_output.get("wacc_info", {}).get("wacc", 0.10))
     wacc_values = [base_wacc - 0.01, base_wacc - 0.005, base_wacc, base_wacc + 0.005, base_wacc + 0.01]
     growth_values = [
         float(ctx.model_inputs["inputs"]["terminal_growth"]) - 0.01,

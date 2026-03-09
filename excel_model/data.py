@@ -27,12 +27,15 @@ def build_model_inputs(extracted: Dict[str, Any], assumptions: Any) -> Dict[str,
     entry_year = int(extracted.get("entry_year", 2024))
     revenue = _float(extracted, "revenue", 0.0)
     ebitda = _float(extracted, "ebitda", 0.0)
+    debt = _float(extracted, "debt", 0.0)
     base_margin = ebitda / revenue if revenue else _float(
         extracted,
         "ebitda_margin_assumption",
         0.20,
     )
     base_growth = _float(extracted, "revenue_growth_assumption", 0.05)
+    inferred_debt_free = 1.0 if debt == 0 else 0.0
+    revolver_limit_default = max(ebitda * 0.75, revenue * 0.10, 250_000_000.0)
 
     historicals = []
     for offset in range(2, -1, -1):
@@ -71,8 +74,8 @@ def build_model_inputs(extracted: Dict[str, Any], assumptions: Any) -> Dict[str,
             "shares_outstanding": _float(extracted, "shares_outstanding", 1.0),
             "purchase_ebitda": ebitda,
             "entry_multiple": _float(extracted, "entry_multiple", assumptions.entry_multiple),
-            "debt_free_acquisition": _float(extracted, "debt_free_acquisition", 0.0),
-            "existing_debt": _float(extracted, "debt", 0.0),
+            "debt_free_acquisition": _float(extracted, "debt_free_acquisition", inferred_debt_free),
+            "existing_debt": debt,
             "existing_cash": _float(extracted, "cash", 0.0),
             "transaction_fee_pct": _float(extracted, "transaction_fee_pct", 0.02),
             "financing_fee_pct": _float(extracted, "financing_fee_pct", 0.01),
@@ -95,7 +98,7 @@ def build_model_inputs(extracted: Dict[str, Any], assumptions: Any) -> Dict[str,
             ),
             "sub_pik_rate": _float(extracted, "sub_pik_rate", 0.0),
             "revolver_interest_rate": _float(extracted, "revolver_interest_rate", 0.07),
-            "revolver_limit": _float(extracted, "revolver_limit", ebitda * 0.75),
+            "revolver_limit": _float(extracted, "revolver_limit", revolver_limit_default),
             "senior_amortization_pct": _float(extracted, "senior_amortization_pct", 0.05),
             "cash_sweep_pct": _float(extracted, "cash_sweep_pct", 1.0),
             "tax_rate": _float(extracted, "tax_rate", assumptions.tax_rate),

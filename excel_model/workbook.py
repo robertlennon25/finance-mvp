@@ -35,7 +35,7 @@ def write_workbook(
     sensitivity_info: Dict[str, Any],
     valuation_summary: Iterable[Dict[str, Any]],
 ) -> Path:
-    del projections, wacc_info, lbo_info, sensitivity_info, valuation_summary
+    del projections, lbo_info, sensitivity_info, valuation_summary
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -43,6 +43,7 @@ def write_workbook(
     wb = Workbook()
     python_output = {
         "dcf_info": dcf_info,
+        "wacc_info": wacc_info,
     }
     ctx = ModelContext(
         wb=wb,

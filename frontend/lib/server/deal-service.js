@@ -45,6 +45,7 @@ export async function getDealDetail(dealId, user = null) {
   const runHistory = await getDealRunHistory(dealId);
   const meta = await getDealMeta(dealId);
   const workbookPath = await getWorkbookPath(dealId);
+  const workbookExistsInCloud = await hasSupabaseArtifact(dealId, `${dealId}_valuation_model.xlsx`);
   const workbookSummary = await getWorkbookSummary(dealId);
   const documents = await getDealDocuments(dealId);
   const reviewExists = (await exists(reviewPath)) || Boolean(await getSupabaseArtifactJson(dealId, `${dealId}_review_payload.json`));
@@ -63,8 +64,8 @@ export async function getDealDetail(dealId, user = null) {
     companyName: workspace?.companyName ?? inferCompanyNameFromDocuments(documents) ?? "",
     documentCount: documents.length || manifest.document_count || 0,
     fieldCount: Object.keys(workspace?.review?.fields ?? {}).length,
-    workbookReady: Boolean(workbookPath),
-    workbookFileName: workbookPath ? path.basename(workbookPath) : null,
+    workbookReady: Boolean(workbookPath || workbookExistsInCloud),
+    workbookFileName: workbookPath ? path.basename(workbookPath) : `${dealId}_valuation_model.xlsx`,
     workbookSummary,
     hasReview: Boolean(workspace),
     extractionMetadata,
@@ -74,7 +75,7 @@ export async function getDealDetail(dealId, user = null) {
     pipeline: workspace?.pipeline ?? buildPipelineFromPresence({
       hasDocuments: documents.length > 0,
       hasReview: Boolean(workspace),
-      workbookReady: Boolean(workbookPath),
+      workbookReady: Boolean(workbookPath || workbookExistsInCloud),
       extractionMetadata,
     })
   };
@@ -84,6 +85,7 @@ export async function getDealWorkspace(dealId, user = null) {
   const reviewPath = path.join(RESOLVED_ROOT, `${dealId}_review_payload.json`);
   const manifestPath = path.join(NORMALIZED_ROOT, `${dealId}_manifest.json`);
   const workbookPath = await getWorkbookPath(dealId);
+  const workbookExistsInCloud = await hasSupabaseArtifact(dealId, `${dealId}_valuation_model.xlsx`);
   const overrides = await getDealOverrides(dealId, user);
   const extractionMetadata = await getExtractionMetadata(dealId);
   const review = (await exists(reviewPath))
@@ -103,11 +105,11 @@ export async function getDealWorkspace(dealId, user = null) {
     dealId,
     companyName: mergedReview.fields?.company_name?.selected?.value ?? "Unknown company",
     documentCount: manifest.document_count ?? manifest.documents?.length ?? 0,
-    workbookReady: Boolean(workbookPath),
+    workbookReady: Boolean(workbookPath || workbookExistsInCloud),
     review: mergedReview,
     overrides,
     extractionMetadata,
-    pipeline: buildPipelineFromReview(mergedReview, manifest, Boolean(workbookPath), extractionMetadata)
+    pipeline: buildPipelineFromReview(mergedReview, manifest, Boolean(workbookPath || workbookExistsInCloud), extractionMetadata)
   };
 }
 
@@ -760,6 +762,18 @@ async function getSupabaseArtifactResponse(dealId, fileName, options = {}) {
       "Content-Disposition": options.disposition || `inline; filename="${fileName}"`,
     },
   };
+}
+
+async function hasSupabaseArtifact(dealId, fileName) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase) {
+    return false;
+  }
+
+  const bucket = getSupabaseStorageBucket();
+  const storagePath = buildSupabaseArtifactPath(dealId, fileName);
+  const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+  return Boolean(!error && data);
 }
 
 function buildSupabaseStoragePath({ userId, dealId, fileName }) {
