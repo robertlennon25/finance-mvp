@@ -13,6 +13,18 @@ export function isSupabasePersistenceConfigured() {
   );
 }
 
+export function getSupabaseStorageBucket() {
+  return process.env.SUPABASE_STORAGE_BUCKET || "deal-documents";
+}
+
+export function getRailwayWorkerUrl() {
+  return process.env.RAILWAY_WORKER_URL || "";
+}
+
+export function getWorkerSharedSecret() {
+  return process.env.WORKER_SHARED_SECRET || "";
+}
+
 export function getSiteUrl() {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||

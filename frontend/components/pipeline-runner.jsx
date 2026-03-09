@@ -13,12 +13,14 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
   useEffect(() => {
     let cancelled = false;
     let stepIndex = 0;
+    let intervalId = null;
+    let pollTimeoutId = null;
 
     async function runPipeline() {
       setStatus("running");
       setError("");
 
-      const interval = setInterval(() => {
+      intervalId = setInterval(() => {
         stepIndex = Math.min(stepIndex + 1, steps.length - 1);
         if (!cancelled) {
           setActiveStep(stepIndex);
@@ -38,8 +40,12 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
         }
 
         const payload = await response.json().catch(() => ({}));
+        if (payload.remote && payload.jobId) {
+          await pollRemoteJob(payload.jobId);
+          return;
+        }
 
-        clearInterval(interval);
+        clearInterval(intervalId);
         if (!cancelled) {
           setActiveStep(steps.length - 1);
           setStatus("done");
@@ -47,7 +53,7 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
           window.setTimeout(() => router.push(targetHref), 1100);
         }
       } catch (err) {
-        clearInterval(interval);
+        clearInterval(intervalId);
         if (!cancelled) {
           setStatus("error");
           setError(err.message || "Pipeline execution failed.");
@@ -55,9 +61,57 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
       }
     }
 
+    async function pollRemoteJob(jobId) {
+      async function pollOnce() {
+        const response = await fetch(`/api/deals/${dealId}/pipeline?jobId=${encodeURIComponent(jobId)}`, {
+          method: "GET",
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error || "Failed to poll worker status.");
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        if (typeof payload.progress === "number") {
+          const mappedStep = Math.max(
+            0,
+            Math.min(steps.length - 1, Math.floor((payload.progress / 100) * steps.length))
+          );
+          setActiveStep(mappedStep);
+        }
+        setStatusMessage(payload.message || "");
+
+        if (payload.status === "completed") {
+          clearInterval(intervalId);
+          setActiveStep(steps.length - 1);
+          setStatus("done");
+          window.setTimeout(() => router.push(targetHref), 1100);
+          return;
+        }
+
+        if (payload.status === "failed") {
+          throw new Error(payload.message || "Pipeline execution failed.");
+        }
+
+        pollTimeoutId = window.setTimeout(pollOnce, 1800);
+      }
+
+      await pollOnce();
+    }
+
     runPipeline();
     return () => {
       cancelled = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      if (pollTimeoutId) {
+        window.clearTimeout(pollTimeoutId);
+      }
     };
   }, [applyEstimates, dealId, phase, router, steps, targetHref]);
 

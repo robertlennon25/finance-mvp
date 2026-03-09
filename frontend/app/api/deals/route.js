@@ -7,6 +7,7 @@ import {
   formatBytes
 } from "@/lib/app-config";
 import { createDealFromUploads } from "@/lib/server/deal-service";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function POST(request) {
   try {
@@ -51,7 +52,8 @@ export async function POST(request) {
       );
     }
 
-    const detail = await createDealFromUploads(dealName, documents);
+    const user = await getAuthenticatedUser();
+    const detail = await createDealFromUploads(dealName, documents, user);
     return NextResponse.json({ ok: true, dealId: detail.dealId });
   } catch (error) {
     return NextResponse.json(

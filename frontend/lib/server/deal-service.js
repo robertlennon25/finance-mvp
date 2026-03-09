@@ -1,9 +1,15 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { execFile } from "child_process";
+import crypto from "crypto";
 import { promisify } from "util";
 
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
+import {
+  getRailwayWorkerUrl,
+  getSupabaseStorageBucket,
+  getWorkerSharedSecret,
+} from "@/lib/supabase/config";
 
 const execFileAsync = promisify(execFile);
 
@@ -99,15 +105,26 @@ export async function getDealWorkspace(dealId, user = null) {
   };
 }
 
-export async function createDealFromUploads(dealName, files) {
+export async function createDealFromUploads(dealName, files, user = null) {
   const dealId = slugifyDealName(dealName);
   const dealDir = path.join(INBOX_ROOT, dealId);
   await fs.mkdir(dealDir, { recursive: true });
 
+  const uploadedDocuments = [];
+
   for (const file of files.slice(0, 5)) {
-    const filePath = path.join(dealDir, sanitizeFileName(file.name));
+    const sanitizedName = sanitizeFileName(file.name);
+    const filePath = path.join(dealDir, sanitizedName);
     const buffer = Buffer.from(await file.arrayBuffer());
+    const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
     await fs.writeFile(filePath, buffer);
+    uploadedDocuments.push({
+      fileName: sanitizedName,
+      mimeType: file.type || getContentType(sanitizedName),
+      sizeBytes: buffer.byteLength,
+      sha256,
+      buffer,
+    });
   }
 
   await saveDealMeta(dealId, {
@@ -118,16 +135,34 @@ export async function createDealFromUploads(dealName, files) {
     source: "upload",
   });
 
+  await syncDealToSupabase({
+    dealId,
+    displayName: dealName.trim(),
+    userId: user?.id ?? null,
+    documents: uploadedDocuments,
+  });
+
   return getDealDetail(dealId);
 }
 
 export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5 } = {}) {
+  if (isRailwayWorkerConfigured()) {
+    return triggerRailwayPipeline(dealId, { phase, maxChunks });
+  }
+
   if (phase === "analysis") {
     await runPythonCommand(["run_resolve_fields.py", dealId]);
     await runPythonCommand(["run_prepare_model_inputs.py", dealId]);
     await runPythonCommand(["run_build_workbook_from_deal.py", dealId]);
     const result = { phase, cached: false, message: "Analysis completed." };
     await appendDealRun(dealId, {
+      phase,
+      status: "completed",
+      cached: false,
+      message: result.message,
+    });
+    await appendSupabasePipelineRun(dealId, {
+      owner_user_id: null,
       phase,
       status: "completed",
       cached: false,
@@ -157,7 +192,33 @@ export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5
     cached,
     message: result.message,
   });
+  await appendSupabasePipelineRun(dealId, {
+    owner_user_id: null,
+    phase,
+    status: "completed",
+    cached,
+    message: result.message,
+  });
   return result;
+}
+
+export async function getPipelineRunStatus(jobId) {
+  if (!isRailwayWorkerConfigured()) {
+    return null;
+  }
+
+  const response = await fetch(`${getRailwayWorkerUrl()}/pipeline/run/${jobId}`, {
+    method: "GET",
+    headers: buildWorkerHeaders(),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.error || "Failed to fetch worker job status.");
+  }
+
+  return payload;
 }
 
 export async function getDealOverrides(dealId, user = null) {
@@ -270,6 +331,16 @@ export async function getDealDocuments(dealId) {
     }
   }
 
+  const supabaseDocuments = await getSupabaseDocuments(dealId);
+  for (const document of supabaseDocuments) {
+    const key = `${document.fileName.toLowerCase()}::cloud`;
+    if (seen.has(document.fileName.toLowerCase())) {
+      continue;
+    }
+    seen.add(key);
+    documents.push(document);
+  }
+
   return documents.sort((a, b) => a.fileName.localeCompare(b.fileName));
 }
 
@@ -278,6 +349,10 @@ export async function getDealDocumentResponse(dealId, requestedFileName) {
   const document = documents.find((item) => item.fileName === requestedFileName);
   if (!document) {
     return null;
+  }
+
+  if (!document.filePath && document.storagePath) {
+    return getSupabaseDocumentResponse(document);
   }
 
   const body = await fs.readFile(document.filePath);
@@ -398,6 +473,182 @@ async function appendDealRun(dealId, run) {
 
   await fs.mkdir(PIPELINE_RUNS_ROOT, { recursive: true });
   await fs.writeFile(getRunHistoryPath(dealId), JSON.stringify(existing, null, 2), "utf-8");
+}
+
+async function syncDealToSupabase({ dealId, displayName, userId, documents }) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase) {
+    return;
+  }
+
+  const bucket = getSupabaseStorageBucket();
+  await upsertSupabaseDeal(supabase, {
+    deal_id: dealId,
+    owner_user_id: userId,
+    display_name: displayName,
+    visibility: "private",
+    is_example: false,
+    source: "upload",
+  });
+
+  for (const document of documents) {
+    const storagePath = buildSupabaseStoragePath({
+      userId,
+      dealId,
+      fileName: document.fileName,
+    });
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(storagePath, document.buffer, {
+        contentType: document.mimeType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw new Error(`Failed to upload ${document.fileName} to Supabase Storage: ${uploadError.message}`);
+    }
+
+    const { error: documentError } = await supabase.from("documents").upsert(
+      {
+        deal_id: dealId,
+        owner_user_id: userId,
+        file_name: document.fileName,
+        mime_type: document.mimeType,
+        size_bytes: document.sizeBytes,
+        sha256: document.sha256,
+        storage_bucket: bucket,
+        storage_path: storagePath,
+        source: "upload",
+      },
+      {
+        onConflict: "deal_id,storage_bucket,storage_path",
+      }
+    );
+
+    if (documentError) {
+      throw new Error(`Failed to save document metadata: ${documentError.message}`);
+    }
+  }
+}
+
+async function upsertSupabaseDeal(supabase, payload) {
+  const { error } = await supabase.from("deals").upsert(payload, {
+    onConflict: "deal_id",
+  });
+
+  if (error) {
+    throw new Error(`Failed to save deal metadata: ${error.message}`);
+  }
+}
+
+async function appendSupabasePipelineRun(dealId, payload) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("pipeline_runs").insert({
+    deal_id: dealId,
+    ...payload,
+    triggered_by: "frontend",
+  });
+
+  if (error) {
+    throw new Error(`Failed to save pipeline run metadata: ${error.message}`);
+  }
+}
+
+async function triggerRailwayPipeline(dealId, { phase, maxChunks }) {
+  const response = await fetch(`${getRailwayWorkerUrl()}/pipeline/run`, {
+    method: "POST",
+    headers: {
+      ...buildWorkerHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      deal_id: dealId,
+      phase,
+      max_chunks: maxChunks,
+      triggered_by: "frontend",
+    }),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.error || "Failed to start Railway worker job.");
+  }
+
+  return {
+    phase,
+    remote: true,
+    jobId: payload.job_id,
+    status: payload.status || "queued",
+    message: "Pipeline job queued on Railway worker.",
+  };
+}
+
+function buildWorkerHeaders() {
+  const sharedSecret = getWorkerSharedSecret();
+  return sharedSecret ? { Authorization: `Bearer ${sharedSecret}` } : {};
+}
+
+function isRailwayWorkerConfigured() {
+  return Boolean(getRailwayWorkerUrl());
+}
+
+async function getSupabaseDocuments(dealId) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("documents")
+    .select("file_name, mime_type, size_bytes, storage_bucket, storage_path")
+    .eq("deal_id", dealId);
+
+  if (error) {
+    throw new Error(`Failed to load Supabase documents: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    fileName: row.file_name,
+    filePath: null,
+    size: row.size_bytes,
+    bucket: "supabase",
+    storageBucket: row.storage_bucket,
+    storagePath: row.storage_path,
+    mimeType: row.mime_type,
+  }));
+}
+
+async function getSupabaseDocumentResponse(document) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const bucket = document.storageBucket || getSupabaseStorageBucket();
+  const { data, error } = await supabase.storage.from(bucket).download(document.storagePath);
+  if (error || !data) {
+    throw new Error(`Failed to download Supabase document: ${error?.message || "Unknown error"}`);
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return {
+    body: Buffer.from(arrayBuffer),
+    headers: {
+      "Content-Type": document.mimeType || getContentType(document.fileName),
+      "Content-Disposition": `inline; filename="${document.fileName}"`,
+    },
+  };
+}
+
+function buildSupabaseStoragePath({ userId, dealId, fileName }) {
+  const owner = userId || "anonymous";
+  return `private/${owner}/${dealId}/${fileName}`;
 }
 
 async function getWorkbookPath(dealId) {

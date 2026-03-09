@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   applyRecommendedEstimates,
   getDealDetail,
+  getPipelineRunStatus,
   runDealPipeline
 } from "@/lib/server/deal-service";
 import { isSupabasePersistenceConfigured } from "@/lib/supabase/config";
@@ -34,6 +35,27 @@ export async function POST(request, { params }) {
   } catch (error) {
     return NextResponse.json(
       { error: error?.message || "Pipeline execution failed." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request) {
+  try {
+    const jobId = request.nextUrl.searchParams.get("jobId");
+    if (!jobId) {
+      return NextResponse.json({ error: "Missing jobId." }, { status: 400 });
+    }
+
+    const result = await getPipelineRunStatus(jobId);
+    if (!result) {
+      return NextResponse.json({ error: "Worker polling is not configured." }, { status: 400 });
+    }
+
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error?.message || "Failed to fetch pipeline status." },
       { status: 500 }
     );
   }
