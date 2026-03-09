@@ -74,7 +74,9 @@ def build_historicals_input_sheet(ctx) -> None:
         ("Sub Interest Rate", "sub_interest_rate", ctx.model_inputs["inputs"]["sub_interest_rate"], "0.0%"),
         ("Sub PIK Rate", "sub_pik_rate", ctx.model_inputs["inputs"]["sub_pik_rate"], "0.0%"),
         ("Revolver Rate", "revolver_interest_rate", ctx.model_inputs["inputs"]["revolver_interest_rate"], "0.0%"),
+        ("Revolver Limit", "revolver_limit", ctx.model_inputs["inputs"]["revolver_limit"], "#,##0"),
         ("Senior Amortization %", "senior_amortization_pct", ctx.model_inputs["inputs"]["senior_amortization_pct"], "0.0%"),
+        ("Cash Sweep %", "cash_sweep_pct", ctx.model_inputs["inputs"]["cash_sweep_pct"], "0.0%"),
     ]
     for label, key, value, fmt in financing_rows:
         row = _write_input_row(ws, row, label, key, value, ctx, fmt)

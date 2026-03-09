@@ -21,9 +21,12 @@ def build_debt_schedule_sheet(ctx) -> None:
         "Cash Pre Debt Service",
         "Mandatory Senior",
         "Revolver Repay",
+        "Cash Post Mandatory",
+        "Cash Sweep Capacity",
         "Senior Sweep",
         "Sub Sweep",
         "Revolver Draw",
+        "Liquidity Shortfall",
         "End Cash",
         "End Senior",
         "End Sub",
@@ -44,10 +47,10 @@ def build_debt_schedule_sheet(ctx) -> None:
             ws.cell(row=idx, column=4, value=f"={ctx.ref('entry_sub_debt')}")
             ws.cell(row=idx, column=5, value=0)
         else:
-            ws.cell(row=idx, column=2, value=f"=Q{idx - 1}")
-            ws.cell(row=idx, column=3, value=f"=R{idx - 1}")
-            ws.cell(row=idx, column=4, value=f"=S{idx - 1}")
-            ws.cell(row=idx, column=5, value=f"=T{idx - 1}")
+            ws.cell(row=idx, column=2, value=f"=T{idx - 1}")
+            ws.cell(row=idx, column=3, value=f"=U{idx - 1}")
+            ws.cell(row=idx, column=4, value=f"=V{idx - 1}")
+            ws.cell(row=idx, column=5, value=f"=W{idx - 1}")
 
         ws.cell(row=idx, column=6, value=f"={ctx.ref(f'ufcf_{year_num}')}")
         ws.cell(row=idx, column=7, value=f"=C{idx}*{ctx.ref('senior_interest_rate')}")
@@ -57,15 +60,24 @@ def build_debt_schedule_sheet(ctx) -> None:
         ws.cell(row=idx, column=11, value=f"=B{idx}+F{idx}-G{idx}-H{idx}-J{idx}")
         ws.cell(row=idx, column=12, value=f"=MIN(C{idx}*{ctx.ref('senior_amortization_pct')},C{idx})")
         ws.cell(row=idx, column=13, value=f"=MIN(MAX(K{idx}-L{idx}-{ctx.ref('min_cash_balance')},0),E{idx})")
-        ws.cell(row=idx, column=14, value=f"=MIN(MAX(K{idx}-L{idx}-M{idx}-{ctx.ref('min_cash_balance')},0),MAX(C{idx}-L{idx},0))")
-        ws.cell(row=idx, column=15, value=f"=MIN(MAX(K{idx}-L{idx}-M{idx}-N{idx}-{ctx.ref('min_cash_balance')},0),D{idx}+I{idx})")
-        ws.cell(row=idx, column=16, value=f"=MAX({ctx.ref('min_cash_balance')}-(K{idx}-L{idx}-M{idx}-N{idx}-O{idx}),0)")
-        ws.cell(row=idx, column=17, value=f"=K{idx}-L{idx}-M{idx}-N{idx}-O{idx}+P{idx}")
-        ws.cell(row=idx, column=18, value=f"=MAX(C{idx}-L{idx}-N{idx},0)")
-        ws.cell(row=idx, column=19, value=f"=MAX(D{idx}+I{idx}-O{idx},0)")
-        ws.cell(row=idx, column=20, value=f"=MAX(E{idx}-M{idx}+P{idx},0)")
+        ws.cell(row=idx, column=14, value=f"=K{idx}-L{idx}-M{idx}")
+        ws.cell(row=idx, column=15, value=f"=MAX(N{idx}-{ctx.ref('min_cash_balance')},0)*{ctx.ref('cash_sweep_pct')}")
+        ws.cell(row=idx, column=16, value=f"=MIN(O{idx},MAX(C{idx}-L{idx},0))")
+        ws.cell(row=idx, column=17, value=f"=MIN(MAX(O{idx}-P{idx},0),D{idx}+I{idx})")
+        ws.cell(row=idx, column=18, value=f"=MIN(MAX({ctx.ref('min_cash_balance')}-(N{idx}-P{idx}-Q{idx}),0),MAX({ctx.ref('revolver_limit')}-E{idx}+M{idx},0))")
+        ws.cell(row=idx, column=19, value=f"=MAX({ctx.ref('min_cash_balance')}-(N{idx}-P{idx}-Q{idx}-R{idx}),0)")
+        ws.cell(row=idx, column=20, value=f"=N{idx}-P{idx}-Q{idx}+R{idx}"
+        )
+        ws.cell(row=idx, column=21, value=f"=MAX(C{idx}-L{idx}-P{idx},0)")
+        ws.cell(row=idx, column=22, value=f"=MAX(D{idx}+I{idx}-Q{idx},0)")
+        ws.cell(row=idx, column=23, value=f"=MAX(E{idx}-M{idx}+R{idx},0)")
 
-        ctx.set_ref(f"end_cash_{year_num}", ws.title, f"Q{idx}")
-        ctx.set_ref(f"end_senior_{year_num}", ws.title, f"R{idx}")
-        ctx.set_ref(f"end_sub_{year_num}", ws.title, f"S{idx}")
-        ctx.set_ref(f"end_revolver_{year_num}", ws.title, f"T{idx}")
+        ctx.set_ref(f"liquidity_shortfall_{year_num}", ws.title, f"S{idx}")
+        ctx.set_ref(f"end_cash_{year_num}", ws.title, f"T{idx}")
+        ctx.set_ref(f"end_senior_{year_num}", ws.title, f"U{idx}")
+        ctx.set_ref(f"end_sub_{year_num}", ws.title, f"V{idx}")
+        ctx.set_ref(f"end_revolver_{year_num}", ws.title, f"W{idx}")
+
+    for row in range(4, 9):
+        for col in range(2, 24):
+            ws.cell(row=row, column=col).number_format = "#,##0"

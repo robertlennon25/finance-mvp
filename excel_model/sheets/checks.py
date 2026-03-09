@@ -21,6 +21,8 @@ def build_checks_sheet(ctx) -> None:
         ("WACC > Terminal Growth", f"={ctx.ref('wacc')}-{ctx.ref('terminal_growth')}", '=IF(B9>0,"PASS","FAIL")'),
         ("Exit Equity Positive", f"={ctx.ref('exit_equity')}", '=IF(B10>0,"PASS","FAIL")'),
         ("DCF Share Price Positive", f"={ctx.ref('share_price_multiple')}", '=IF(B11>0,"PASS","FAIL")'),
+        ("Liquidity Shortfall = 0", f"=MAX({ctx.ref('liquidity_shortfall_1')},{ctx.ref('liquidity_shortfall_2')},{ctx.ref('liquidity_shortfall_3')},{ctx.ref('liquidity_shortfall_4')},{ctx.ref('liquidity_shortfall_5')})", '=IF(B12=0,"PASS","FAIL")'),
+        ("Revolver Within Limit", f"=MAX({ctx.ref('end_revolver_1')},{ctx.ref('end_revolver_2')},{ctx.ref('end_revolver_3')},{ctx.ref('end_revolver_4')},{ctx.ref('end_revolver_5')})-{ctx.ref('revolver_limit')}", '=IF(B13<=0,"PASS","FAIL")'),
     ]
 
     for idx, (label, formula, status) in enumerate(checks, start=4):
@@ -28,19 +30,19 @@ def build_checks_sheet(ctx) -> None:
         ws.cell(row=idx, column=2, value=formula)
         ws.cell(row=idx, column=3, value=status)
 
-    ws["A14"] = "Python Safety Snapshot"
-    ws["A15"] = "Metric"
-    ws["B15"] = "Python"
-    ws["C15"] = "Excel"
-    ws["D15"] = "Delta"
-    style_header_row(ws, 15, 1, 4)
+    ws["A16"] = "Python Safety Snapshot"
+    ws["A17"] = "Metric"
+    ws["B17"] = "Python"
+    ws["C17"] = "Excel"
+    ws["D17"] = "Delta"
+    style_header_row(ws, 17, 1, 4)
 
     python_dcf = ctx.python_output.get("dcf_info", {})
     snapshot_rows = [
         ("DCF Share Price (PGR)", python_dcf.get("share_price_pgr", 0.0), f"={ctx.ref('share_price_pgr')}"),
         ("DCF Share Price (Multiple)", python_dcf.get("share_price_multiple", 0.0), f"={ctx.ref('share_price_multiple')}"),
     ]
-    for idx, (label, py_value, excel_formula) in enumerate(snapshot_rows, start=16):
+    for idx, (label, py_value, excel_formula) in enumerate(snapshot_rows, start=18):
         ws.cell(row=idx, column=1, value=label)
         ws.cell(row=idx, column=2, value=py_value)
         ws.cell(row=idx, column=3, value=excel_formula)
