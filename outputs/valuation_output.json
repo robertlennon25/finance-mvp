@@ -1,0 +1,424 @@
+{
+  "extracted": {
+    "company_name": "Example Media Company",
+    "revenue": 29860000000,
+    "ebitda": 8340000000,
+    "cash": 1000000000,
+    "debt": 23336000000,
+    "shares_outstanding": 783800000,
+    "revenue_growth_assumption": 0.05,
+    "ebitda_margin_assumption": 0.28,
+    "capex_pct_revenue": 0.018,
+    "nwc_pct_revenue": 0.01,
+    "tax_rate": 0.25,
+    "risk_free_rate": 0.042,
+    "beta": 1.2,
+    "market_risk_premium": 0.06,
+    "cost_of_debt": 0.065,
+    "terminal_growth": 0.025,
+    "exit_multiple": 10
+  },
+  "assumptions": {
+    "revenue_growth": 0.05,
+    "ebitda_margin": 0.28,
+    "capex_pct": 0.018,
+    "nwc_pct": 0.01,
+    "tax_rate": 0.25,
+    "risk_free_rate": 0.042,
+    "beta": 1.2,
+    "market_risk_premium": 0.06,
+    "cost_of_debt": 0.065,
+    "terminal_growth": 0.025,
+    "entry_multiple": 10.0,
+    "exit_multiple": 10.0,
+    "senior_debt_pct": 0.7,
+    "sub_debt_pct": 0.3,
+    "senior_interest_rate": 0.06,
+    "sub_interest_rate": 0.08
+  },
+  "projections": [
+    {
+      "year": 1.0,
+      "revenue": 31353000000.0,
+      "ebitda": 8778840000.0,
+      "depreciation": 627060000.0,
+      "ebit": 8151780000.0,
+      "taxes": 2037945000.0,
+      "nopat": 6113835000.0,
+      "capex": 564354000.0,
+      "nwc_change": 313530000.0,
+      "ufcf": 5863011000.0
+    },
+    {
+      "year": 2.0,
+      "revenue": 32920650000.0,
+      "ebitda": 9217782000.0,
+      "depreciation": 658413000.0,
+      "ebit": 8559369000.0,
+      "taxes": 2139842250.0,
+      "nopat": 6419526750.0,
+      "capex": 592571700.0,
+      "nwc_change": 329206500.0,
+      "ufcf": 6156161550.0
+    },
+    {
+      "year": 3.0,
+      "revenue": 34566682500.0,
+      "ebitda": 9678671100.0,
+      "depreciation": 691333650.0,
+      "ebit": 8987337450.0,
+      "taxes": 2246834362.5,
+      "nopat": 6740503087.5,
+      "capex": 622200285.0,
+      "nwc_change": 345666825.0,
+      "ufcf": 6463969627.5
+    },
+    {
+      "year": 4.0,
+      "revenue": 36295016625.0,
+      "ebitda": 10162604655.000002,
+      "depreciation": 725900332.5,
+      "ebit": 9436704322.500002,
+      "taxes": 2359176080.6250005,
+      "nopat": 7077528241.875002,
+      "capex": 653310299.25,
+      "nwc_change": 362950166.25,
+      "ufcf": 6787168108.875002
+    },
+    {
+      "year": 5.0,
+      "revenue": 38109767456.25,
+      "ebitda": 10670734887.750002,
+      "depreciation": 762195349.125,
+      "ebit": 9908539538.625002,
+      "taxes": 2477134884.6562505,
+      "nopat": 7431404653.968752,
+      "capex": 685975814.2125,
+      "nwc_change": 381097674.5625,
+      "ufcf": 7126526514.318752
+    }
+  ],
+  "wacc_info": {
+    "equity_value": 44384000000.0,
+    "debt_value": 23336000000.0,
+    "weight_equity": 0.6554046072061429,
+    "weight_debt": 0.34459539279385704,
+    "cost_of_equity": 0.11399999999999999,
+    "after_tax_cost_of_debt": 0.04875,
+    "wacc": 0.09151515062020081
+  },
+  "dcf_info": {
+    "rows": [
+      {
+        "year": 1.0,
+        "revenue": 31353000000.0,
+        "ebitda": 8778840000.0,
+        "depreciation": 627060000.0,
+        "ebit": 8151780000.0,
+        "taxes": 2037945000.0,
+        "nopat": 6113835000.0,
+        "capex": 564354000.0,
+        "nwc_change": 313530000.0,
+        "ufcf": 5863011000.0,
+        "discount_factor": 0.9161576909232989,
+        "pv_ufcf": 5371442619.617902
+      },
+      {
+        "year": 2.0,
+        "revenue": 32920650000.0,
+        "ebitda": 9217782000.0,
+        "depreciation": 658413000.0,
+        "ebit": 8559369000.0,
+        "taxes": 2139842250.0,
+        "nopat": 6419526750.0,
+        "capex": 592571700.0,
+        "nwc_change": 329206500.0,
+        "ufcf": 6156161550.0,
+        "discount_factor": 0.839344914637911,
+        "pv_ufcf": 5167142890.68194
+      },
+      {
+        "year": 3.0,
+        "revenue": 34566682500.0,
+        "ebitda": 9678671100.0,
+        "depreciation": 691333650.0,
+        "ebit": 8987337450.0,
+        "taxes": 2246834362.5,
+        "nopat": 6740503087.5,
+        "capex": 622200285.0,
+        "nwc_change": 345666825.0,
+        "ufcf": 6463969627.5,
+        "discount_factor": 0.7689722988828821,
+        "pv_ufcf": 4970613584.367802
+      },
+      {
+        "year": 4.0,
+        "revenue": 36295016625.0,
+        "ebitda": 10162604655.000002,
+        "depreciation": 725900332.5,
+        "ebit": 9436704322.500002,
+        "taxes": 2359176080.6250005,
+        "nopat": 7077528241.875002,
+        "capex": 653310299.25,
+        "nwc_change": 362950166.25,
+        "ufcf": 6787168108.875002,
+        "discount_factor": 0.7044998857285221,
+        "pv_ufcf": 4781559157.122708
+      },
+      {
+        "year": 5.0,
+        "revenue": 38109767456.25,
+        "ebitda": 10670734887.750002,
+        "depreciation": 762195349.125,
+        "ebit": 9908539538.625002,
+        "taxes": 2477134884.6562505,
+        "nopat": 7431404653.968752,
+        "capex": 685975814.2125,
+        "nwc_change": 381097674.5625,
+        "ufcf": 7126526514.318752,
+        "discount_factor": 0.6454329885647707,
+        "pv_ufcf": 4599695306.222831
+      }
+    ],
+    "projection_period_pv": 24890453558.013184,
+    "terminal_value_pgr": 109819937398.71754,
+    "terminal_value_multiple": 106707348877.50002,
+    "pv_terminal_value_pgr": 70881410399.2503,
+    "pv_terminal_value_multiple": 68872443087.82848,
+    "enterprise_value_pgr": 95771863957.26349,
+    "enterprise_value_multiple": 93762896645.84166,
+    "equity_value_pgr": 73435863957.26349,
+    "equity_value_multiple": 71426896645.84166,
+    "share_price_pgr": 93.69209486764926,
+    "share_price_multiple": 91.12898270712128
+  },
+  "lbo_info": {
+    "entry_ebitda": 8340000000.0,
+    "entry_multiple": 10.0,
+    "entry_ev": 83400000000.0,
+    "entry_debt_total": 23336000000.0,
+    "entry_cash": 1000000000.0,
+    "entry_senior_debt": 16335199999.999998,
+    "entry_sub_debt": 7000800000.0,
+    "senior_interest_rate": 0.06,
+    "sub_interest_rate": 0.08,
+    "equity_invested": 61064000000.0,
+    "exit_ebitda": 10670734887.750002,
+    "exit_multiple": 10.0,
+    "exit_ev": 106707348877.50002,
+    "exit_debt": 0.0,
+    "exit_cash": 1000000000.0,
+    "equity_value_exit": 107707348877.50002,
+    "moic": 1.7638436538304076,
+    "irr": 0.12019084085056342,
+    "debt_schedule": [
+      {
+        "year": 1,
+        "beginning_senior_debt": 16335199999.999998,
+        "beginning_sub_debt": 7000800000.0,
+        "beginning_total_debt": 23336000000.0,
+        "senior_interest_expense": 980111999.9999999,
+        "sub_interest_expense": 560064000.0,
+        "total_interest_expense": 1540176000.0,
+        "ufcf_before_interest": 5863011000.0,
+        "cash_after_interest": 4322835000.0,
+        "senior_paydown": 4322835000.0,
+        "sub_paydown": 0.0,
+        "ending_senior_debt": 12012364999.999998,
+        "ending_sub_debt": 7000800000.0,
+        "ending_total_debt": 19013165000.0
+      },
+      {
+        "year": 2,
+        "beginning_senior_debt": 12012364999.999998,
+        "beginning_sub_debt": 7000800000.0,
+        "beginning_total_debt": 19013165000.0,
+        "senior_interest_expense": 720741899.9999999,
+        "sub_interest_expense": 560064000.0,
+        "total_interest_expense": 1280805900.0,
+        "ufcf_before_interest": 6156161550.0,
+        "cash_after_interest": 4875355650.0,
+        "senior_paydown": 4875355650.0,
+        "sub_paydown": 0.0,
+        "ending_senior_debt": 7137009349.999998,
+        "ending_sub_debt": 7000800000.0,
+        "ending_total_debt": 14137809349.999998
+      },
+      {
+        "year": 3,
+        "beginning_senior_debt": 7137009349.999998,
+        "beginning_sub_debt": 7000800000.0,
+        "beginning_total_debt": 14137809349.999998,
+        "senior_interest_expense": 428220560.9999999,
+        "sub_interest_expense": 560064000.0,
+        "total_interest_expense": 988284560.9999999,
+        "ufcf_before_interest": 6463969627.5,
+        "cash_after_interest": 5475685066.5,
+        "senior_paydown": 5475685066.5,
+        "sub_paydown": 0.0,
+        "ending_senior_debt": 1661324283.499998,
+        "ending_sub_debt": 7000800000.0,
+        "ending_total_debt": 8662124283.499998
+      },
+      {
+        "year": 4,
+        "beginning_senior_debt": 1661324283.499998,
+        "beginning_sub_debt": 7000800000.0,
+        "beginning_total_debt": 8662124283.499998,
+        "senior_interest_expense": 99679457.00999989,
+        "sub_interest_expense": 560064000.0,
+        "total_interest_expense": 659743457.0099999,
+        "ufcf_before_interest": 6787168108.875002,
+        "cash_after_interest": 6127424651.865002,
+        "senior_paydown": 1661324283.499998,
+        "sub_paydown": 4466100368.365004,
+        "ending_senior_debt": 0.0,
+        "ending_sub_debt": 2534699631.6349964,
+        "ending_total_debt": 2534699631.6349964
+      },
+      {
+        "year": 5,
+        "beginning_senior_debt": 0.0,
+        "beginning_sub_debt": 2534699631.6349964,
+        "beginning_total_debt": 2534699631.6349964,
+        "senior_interest_expense": 0.0,
+        "sub_interest_expense": 202775970.53079972,
+        "total_interest_expense": 202775970.53079972,
+        "ufcf_before_interest": 7126526514.318752,
+        "cash_after_interest": 6923750543.787952,
+        "senior_paydown": 0.0,
+        "sub_paydown": 2534699631.6349964,
+        "ending_senior_debt": 0.0,
+        "ending_sub_debt": 0.0,
+        "ending_total_debt": 0.0
+      }
+    ]
+  },
+  "sensitivity_info": {
+    "base_wacc": 0.09151515062020081,
+    "base_terminal_growth": 0.025,
+    "base_exit_multiple": 10.0,
+    "wacc_values": [
+      0.0815,
+      0.0865,
+      0.0915,
+      0.0965,
+      0.1015
+    ],
+    "terminal_growth_values": [
+      0.015,
+      0.02,
+      0.025,
+      0.03,
+      0.035
+    ],
+    "exit_multiple_values": [
+      9.0,
+      9.5,
+      10.0,
+      10.5,
+      11.0
+    ],
+    "wacc_vs_growth": [
+      {
+        "wacc": 0.0815,
+        "0.015": 97.92495964570762,
+        "0.02": 106.05026693194552,
+        "0.025": 115.61368170247329,
+        "0.03": 127.03407021485111,
+        "0.035": 140.9104562567726
+      },
+      {
+        "wacc": 0.0865,
+        "0.015": 88.93799411783829,
+        "0.02": 95.79913032057584,
+        "0.025": 103.77589842619756,
+        "0.03": 113.16448389564611,
+        "0.035": 124.37609566984197
+      },
+      {
+        "wacc": 0.0915,
+        "0.015": 81.12826744250407,
+        "0.02": 86.98398624554454,
+        "0.025": 93.7202642670873,
+        "0.03": 101.5518720482305,
+        "0.035": 110.76960510037254
+      },
+      {
+        "wacc": 0.0965,
+        "0.015": 74.2790549289657,
+        "0.02": 79.32321735230649,
+        "0.025": 85.07285703765297,
+        "0.03": 91.68710419448013,
+        "0.035": 99.37683869388081
+      },
+      {
+        "wacc": 0.1015,
+        "0.015": 68.22374313201392,
+        "0.02": 72.60431619548002,
+        "0.025": 77.55751318881097,
+        "0.03": 83.20346500638402,
+        "0.035": 89.6984321348703
+      }
+    ],
+    "wacc_vs_multiple": [
+      {
+        "wacc": 0.0815,
+        "9.0": 86.94202131450969,
+        "9.5": 91.54274823749968,
+        "10.0": 96.1434751604897,
+        "10.5": 100.74420208347968,
+        "11.0": 105.34492900646968
+      },
+      {
+        "wacc": 0.0865,
+        "9.0": 84.61507527106322,
+        "9.5": 89.11091087170925,
+        "10.0": 93.60674647235531,
+        "10.5": 98.10258207300134,
+        "11.0": 102.59841767364738
+      },
+      {
+        "wacc": 0.0915,
+        "9.0": 82.348767696917,
+        "9.5": 86.7425686128035,
+        "10.0": 91.13636952869,
+        "10.5": 95.53017044457651,
+        "11.0": 99.92397136046304
+      },
+      {
+        "wacc": 0.0965,
+        "9.0": 80.14122354557054,
+        "9.5": 84.43575606020691,
+        "10.0": 88.73028857484327,
+        "10.5": 93.02482108947962,
+        "11.0": 97.31935360411599
+      },
+      {
+        "wacc": 0.1015,
+        "9.0": 77.99063432234244,
+        "9.5": 82.18857761657061,
+        "10.0": 86.38652091079878,
+        "10.5": 90.58446420502695,
+        "11.0": 94.7824074992551
+      }
+    ]
+  },
+  "valuation_summary": [
+    {
+      "method": "DCF (PGR)",
+      "low": 89.0074901242668,
+      "high": 98.37669961103173
+    },
+    {
+      "method": "DCF (Exit Multiple)",
+      "low": 86.57253357176522,
+      "high": 95.68543184247734
+    },
+    {
+      "method": "LBO",
+      "low": 79230000000.0,
+      "high": 87570000000.0
+    }
+  ]
+}

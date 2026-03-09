@@ -1,0 +1,23 @@
+{
+  "company_name": "Example Media Company",
+  "revenue": 29860000000,
+  "ebitda": 8340000000,
+  "cash": 1000000000,
+  "debt": 23336000000,
+  "shares_outstanding": 783800000,
+
+  "revenue_growth_assumption": 0.05,
+  "ebitda_margin_assumption": 0.28,
+  "capex_pct_revenue": 0.018,
+  "nwc_pct_revenue": 0.01,
+
+  "tax_rate": 0.25,
+
+  "risk_free_rate": 0.042,
+  "beta": 1.2,
+  "market_risk_premium": 0.06,
+  "cost_of_debt": 0.065,
+
+  "terminal_growth": 0.025,
+  "exit_multiple": 10
+}
