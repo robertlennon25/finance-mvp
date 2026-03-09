@@ -14,6 +14,7 @@ The Vercel app should call Railway for pipeline execution in deployed environmen
 
 ## Repo files already prepared
 
+- [`Dockerfile`](/Users/robertlennon/Desktop/finance_ai_mvp/Dockerfile)
 - [`railway.toml`](/Users/robertlennon/Desktop/finance_ai_mvp/railway.toml)
 - [`Procfile`](/Users/robertlennon/Desktop/finance_ai_mvp/Procfile)
 - [`requirements.txt`](/Users/robertlennon/Desktop/finance_ai_mvp/requirements.txt)
@@ -35,16 +36,15 @@ Do not add a Railway database. Supabase is the database, auth, and storage layer
 
 ## Service settings
 
-Railway should detect the Python app from the root `requirements.txt`.
+Railway should now build from the repo [`Dockerfile`](/Users/robertlennon/Desktop/finance_ai_mvp/Dockerfile).
 
 If Railway asks for overrides:
 
 - Root Directory: leave as repo root
 - Build Command: leave blank
-- Start Command:
-  `uvicorn worker_api.app:app --host 0.0.0.0 --port ${PORT:-8000}`
+- Start Command: leave blank
 
-Because [`railway.toml`](/Users/robertlennon/Desktop/finance_ai_mvp/railway.toml) is present, Railway should pick this up automatically.
+The Docker image already starts the worker.
 
 ## Environment variables
 
