@@ -69,13 +69,15 @@ def build_debt_schedule_sheet(ctx) -> None:
         ws.cell(row=idx, column=15, value=f"=MIN(MAX(M{idx}-N{idx}-{ctx.ref('min_cash_balance')},0),F{idx})")
         ws.cell(row=idx, column=16, value=f"=M{idx}-N{idx}-O{idx}")
         ws.cell(row=idx, column=17, value=f"=MAX(P{idx}-{ctx.ref('min_cash_balance')},0)*{ctx.ref('cash_sweep_pct')}")
+        # TLA only amortizes on a scheduled basis. Excess sweep goes to TLB first,
+        # then to sub debt. Revolver is repaid before sweeps and drawn only for deficits.
         ws.cell(row=idx, column=18, value=f"=MIN(Q{idx},D{idx})")
-        ws.cell(row=idx, column=19, value=f"=MIN(MAX(Q{idx}-R{idx},0),MAX(C{idx}-N{idx},0))")
+        ws.cell(row=idx, column=19, value="=0")
         ws.cell(row=idx, column=20, value=f"=MIN(MAX(Q{idx}-R{idx}-S{idx},0),E{idx}+K{idx})")
         ws.cell(row=idx, column=21, value=f"=MIN(MAX({ctx.ref('min_cash_balance')}-(P{idx}-R{idx}-S{idx}-T{idx}),0),MAX({ctx.ref('revolver_limit')}-F{idx}+O{idx},0))")
         ws.cell(row=idx, column=22, value=f"=MAX({ctx.ref('min_cash_balance')}-(P{idx}-R{idx}-S{idx}-T{idx}-U{idx}),0)")
         ws.cell(row=idx, column=23, value=f"=P{idx}-R{idx}-S{idx}-T{idx}+U{idx}")
-        ws.cell(row=idx, column=24, value=f"=MAX(C{idx}-N{idx}-S{idx},0)")
+        ws.cell(row=idx, column=24, value=f"=MAX(C{idx}-N{idx},0)")
         ws.cell(row=idx, column=25, value=f"=MAX(D{idx}-R{idx},0)")
         ws.cell(row=idx, column=26, value=f"=MAX(E{idx}+K{idx}-T{idx},0)")
         ws.cell(row=idx, column=27, value=f"=MAX(F{idx}-O{idx}+U{idx},0)")
