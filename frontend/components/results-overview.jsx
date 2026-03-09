@@ -105,6 +105,19 @@ export function ResultsOverview({ detail }) {
                 <strong>{formatPercent(summary.revenue_cagr)}</strong>
               </article>
             </div>
+            {summary.warnings?.length ? (
+              <div className="warning-stack">
+                {summary.warnings.map((warning, index) => (
+                  <p className="warning-text" key={`summary-warning-${index}`}>
+                    {warning}
+                  </p>
+                ))}
+                <p className="meta">
+                  {summary.editable_note ||
+                    "You can still update these values later directly in the Excel workbook."}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

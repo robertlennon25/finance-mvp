@@ -31,9 +31,9 @@ def build_cover_sheet(ctx) -> None:
     ws["A16"] = "Model Status"
     style_section(ws["A16"])
     ws["A17"] = "Pass Count"
-    ws["B17"] = '=COUNTIF(checks!C4:C13,"PASS")'
+    ws["B17"] = '=COUNTIF(checks!C4:C16,"PASS")'
     ws["A18"] = "Fail Count"
-    ws["B18"] = '=COUNTIF(checks!C4:C13,"FAIL")'
+    ws["B18"] = '=COUNTIF(checks!C4:C16,"FAIL")'
     ws["A20"] = "Workbook Tabs"
     style_section(ws["A20"])
     tabs = [

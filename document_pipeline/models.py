@@ -35,6 +35,7 @@ class FieldCandidate:
     source_locator: str
     method: str
     notes: str = ""
+    source_urls: List[str] = field(default_factory=list)
 
 
 @dataclass

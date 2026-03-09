@@ -806,6 +806,7 @@ function applyOverridesToReview(review, overrides) {
         source_locator: "user_override",
         method: "user_override",
         notes: "Applied from saved override.",
+        source_urls: [],
       },
     };
   }

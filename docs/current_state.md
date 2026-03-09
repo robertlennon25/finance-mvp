@@ -57,6 +57,7 @@ Paths in active use:
 - local review/update flows should not depend on local `*_field_candidates.json` after a Railway run
 - overrides are now best treated as persisted user state, not a trigger to rerun local resolution on the frontend server
 - Railway worker must receive `user_id` for analysis runs so it can sync user overrides before build
+- web fallback is intentionally limited to public-company-like cases and should not run by default for private-company uploads
 
 ## Current likely fragile areas
 

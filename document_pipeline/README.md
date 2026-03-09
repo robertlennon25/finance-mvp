@@ -38,6 +38,7 @@ Python pipeline for turning uploaded deal documents into structured model inputs
 
 - direct extracted candidates are normalized and scored
 - `estimated` candidates are generated for missing or suspiciously zero fields
+- narrow `web_estimated` candidates can be generated for public-company-like cases only
 - user overrides win over extracted values
 - review payload includes selected value, alternatives, warnings, and recommended estimates
 
@@ -55,3 +56,4 @@ That means:
 - candidate scoring heuristics
 - review payload schema
 - override precedence order
+- public-company-only web fallback rules and source URL handling

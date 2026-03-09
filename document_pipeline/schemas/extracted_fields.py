@@ -11,6 +11,7 @@ EXTRACTED_FIELD_SCHEMA: Dict[str, Any] = {
     "cash": None,
     "debt": None,
     "shares_outstanding": None,
+    "public_share_price": None,
     "tax_rate": None,
     "capex_pct_revenue": None,
     "nwc_pct_revenue": None,

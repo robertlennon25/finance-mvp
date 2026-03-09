@@ -51,6 +51,7 @@ def build_historicals_input_sheet(ctx) -> None:
 
     numeric_rows = [
         ("Shares Outstanding", "shares_outstanding", ctx.model_inputs["inputs"]["shares_outstanding"], "#,##0"),
+        ("Entry Revenue", "purchase_revenue", ctx.model_inputs["inputs"]["purchase_revenue"], "#,##0"),
         ("Entry EBITDA", "purchase_ebitda", ctx.model_inputs["inputs"]["purchase_ebitda"], "#,##0"),
         ("Entry Multiple", "entry_multiple", ctx.model_inputs["inputs"]["entry_multiple"], "0.0x"),
         ("Debt-Free Acquisition (0/1)", "debt_free_acquisition", ctx.model_inputs["inputs"]["debt_free_acquisition"], "0"),

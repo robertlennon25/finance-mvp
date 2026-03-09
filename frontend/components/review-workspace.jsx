@@ -66,6 +66,17 @@ export function ReviewWorkspace({ workspace, user }) {
                     <td>
                       <div>{selected?.source_document_id ?? "default"}</div>
                       <p className="meta">{selected?.source_locator ?? ""}</p>
+                      {selected?.source_urls?.length ? (
+                        <div className="source-link-list">
+                          {selected.source_urls.map((url, index) => (
+                            <p className="meta" key={`${fieldName}-selected-url-${index}`}>
+                              <a href={url} rel="noreferrer" target="_blank">
+                                {url}
+                              </a>
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
                       {selected?.normalization_notes?.length ? (
                         <p className="meta">{selected.normalization_notes.join(" ")}</p>
                       ) : null}
@@ -90,6 +101,17 @@ export function ReviewWorkspace({ workspace, user }) {
                                 </span>
                               </div>
                               <p>{option.source_locator}</p>
+                              {option.source_urls?.length ? (
+                                <div className="source-link-list">
+                                  {option.source_urls.map((url, sourceIndex) => (
+                                    <p className="meta" key={`${fieldName}-${index}-url-${sourceIndex}`}>
+                                      <a href={url} rel="noreferrer" target="_blank">
+                                        {url}
+                                      </a>
+                                    </p>
+                                  ))}
+                                </div>
+                              ) : null}
                             </article>
                           ))}
                         </div>

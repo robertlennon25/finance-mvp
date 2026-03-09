@@ -72,6 +72,7 @@ def build_model_inputs(extracted: Dict[str, Any], assumptions: Any) -> Dict[str,
         "historicals": historicals,
         "inputs": {
             "shares_outstanding": _float(extracted, "shares_outstanding", 1.0),
+            "purchase_revenue": revenue,
             "purchase_ebitda": ebitda,
             "entry_multiple": _float(extracted, "entry_multiple", assumptions.entry_multiple),
             "debt_free_acquisition": _float(extracted, "debt_free_acquisition", inferred_debt_free),

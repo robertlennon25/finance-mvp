@@ -16,6 +16,32 @@ from valuation import (
 )
 
 
+def _build_model_warnings(extracted: dict, dcf_info: dict) -> list[str]:
+    warnings: list[str] = []
+
+    revenue = float(extracted.get("revenue", 0) or 0)
+    ebitda = float(extracted.get("ebitda", 0) or 0)
+    shares = float(extracted.get("shares_outstanding", 0) or 0)
+    entry_multiple = float(extracted.get("entry_multiple", 0) or 0)
+    exit_multiple = float(extracted.get("exit_multiple", 0) or 0)
+    share_price = float(dcf_info.get("share_price_multiple", 0) or 0)
+
+    if revenue <= 0:
+        warnings.append("Revenue is zero or missing. Valuation outputs may be unreliable until revenue is updated.")
+    if ebitda <= 0:
+        warnings.append("EBITDA is zero or missing. Enterprise value and debt capacity outputs may be unreliable.")
+    if shares <= 1:
+        warnings.append("Shares outstanding is 1 or missing. Per-share outputs may be placeholder values.")
+    if entry_multiple <= 0:
+        warnings.append("Entry multiple is zero or missing. Transaction valuation may rely on fallback assumptions.")
+    if exit_multiple <= 0:
+        warnings.append("Exit multiple is zero or missing. Terminal value may rely on fallback assumptions.")
+    if share_price <= 0:
+        warnings.append("DCF share price is non-positive. Review operating assumptions and share count before relying on the result.")
+
+    return warnings
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Build the Excel workbook from resolved deal inputs."
@@ -76,6 +102,8 @@ def main() -> None:
             if projections and float(extracted.get("revenue", 0) or 0) > 0
             else None
         ),
+        "warnings": _build_model_warnings(extracted, dcf_info),
+        "editable_note": "You can always update assumptions and outputs later directly in the Excel workbook.",
     }
     summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
     print(f"Workbook written to: {result}")

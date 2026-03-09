@@ -154,6 +154,7 @@ def _coerce_candidates(
                 source_locator=str(item.get("source_locator") or fallback_source_locator),
                 method="extracted",
                 notes=str(item.get("notes", "")).strip(),
+                source_urls=[],
             )
         )
     return result
