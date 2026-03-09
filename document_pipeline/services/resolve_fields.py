@@ -105,7 +105,7 @@ def _build_web_candidates(
 
     missing_fields = [
         field_name
-        for field_name in ("shares_outstanding", "ebitda", "entry_multiple")
+        for field_name in ("revenue", "shares_outstanding", "ebitda", "entry_multiple")
         if not _has_positive_candidate(grouped, field_name)
     ]
     return get_web_fallback_candidates(
@@ -287,6 +287,9 @@ def _build_estimate_candidates(grouped: Dict[str, list[dict[str, Any]]]) -> list
     ebitda_margin = _coerce_number(resolved_inputs.get("ebitda_margin_assumption"))
     entry_multiple = _coerce_number(resolved_inputs.get("entry_multiple"))
     exit_multiple = _coerce_number(resolved_inputs.get("exit_multiple"))
+    debt = _coerce_number(resolved_inputs.get("debt"))
+    cash = _coerce_number(resolved_inputs.get("cash"))
+    public_share_price = _coerce_number(resolved_inputs.get("public_share_price"))
 
     if revenue and ebitda and not _has_positive_candidate(grouped, "ebitda_margin_assumption"):
         margin = max(min(ebitda / revenue, 0.60), 0.05)
@@ -329,6 +332,45 @@ def _build_estimate_candidates(grouped: Dict[str, list[dict[str, Any]]]) -> list
                 f"Estimated as EBITDA divided by {margin_source_note}.",
             )
         )
+
+    if not _has_positive_candidate(grouped, "ebitda") and debt and debt > 0:
+        assumed_leverage = 4.5
+        estimated_ebitda = debt / assumed_leverage
+        estimates.append(
+            _estimate_candidate(
+                "ebitda",
+                int(round(estimated_ebitda)),
+                0.28,
+                "Estimated from debt using a conservative 4.5x debt-to-EBITDA assumption because no positive EBITDA was extracted.",
+            )
+        )
+
+    if not _has_positive_candidate(grouped, "revenue"):
+        ebitda_for_revenue = _best_positive_candidate_value(grouped, "ebitda")
+        if ebitda_for_revenue is None and debt and debt > 0:
+            ebitda_for_revenue = debt / 4.5
+        if ebitda_for_revenue and margin_basis and margin_basis > 0:
+            estimates.append(
+                _estimate_candidate(
+                    "revenue",
+                    int(round(ebitda_for_revenue / margin_basis)),
+                    0.32 if _has_positive_candidate(grouped, "ebitda") else 0.22,
+                    "Estimated from EBITDA and EBITDA margin because no positive revenue was extracted.",
+                )
+            )
+        elif public_share_price and shares_outstanding and entry_multiple and entry_multiple > 0:
+            implied_equity_value = public_share_price * shares_outstanding
+            implied_ev = implied_equity_value + max(debt or 0, 0) - max(cash or 0, 0)
+            if implied_ev > 0 and margin_basis and margin_basis > 0:
+                implied_ebitda = implied_ev / entry_multiple
+                estimates.append(
+                    _estimate_candidate(
+                        "revenue",
+                        int(round(implied_ebitda / margin_basis)),
+                        0.24,
+                        "Estimated from public equity value, net debt, entry multiple, and EBITDA margin because revenue was missing.",
+                    )
+                )
 
     if not _has_positive_candidate(grouped, "revenue_growth_assumption"):
         estimates.append(
@@ -430,6 +472,18 @@ def _best_candidate_value(field_candidates: list[dict[str, Any]]) -> Any:
     pool = non_estimated or field_candidates
     best = max(pool, key=lambda candidate: float(candidate.get("selection_score", 0.0)))
     return best.get("normalized_value")
+
+
+def _best_positive_candidate_value(grouped: Dict[str, list[dict[str, Any]]], field_name: str) -> float | None:
+    positives = []
+    for candidate in grouped.get(field_name, []):
+        value = _coerce_number(candidate.get("normalized_value"))
+        if value is not None and value > 0:
+            positives.append((float(candidate.get("selection_score", 0.0)), value))
+    if not positives:
+        return None
+    positives.sort(key=lambda item: item[0], reverse=True)
+    return positives[0][1]
 
 
 def _has_positive_candidate(grouped: Dict[str, list[dict[str, Any]]], field_name: str) -> bool:

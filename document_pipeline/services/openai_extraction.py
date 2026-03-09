@@ -15,6 +15,7 @@ from document_pipeline.models import FieldCandidate
 from document_pipeline.prompts.extraction import (
     EXTRACTION_PROMPT_VERSION,
     build_chunk_extraction_prompt,
+    build_document_synthesis_prompt,
 )
 from document_pipeline.schemas import EXTRACTED_FIELD_SCHEMA
 from document_pipeline.schemas.extracted_fields import EXTRACTION_SCHEMA_VERSION
@@ -97,6 +98,22 @@ def run_chunk_extraction(
         )
         all_candidates.extend(candidates)
 
+    synthesis_candidates = _run_document_synthesis(
+        client=client,
+        model=model,
+        manifest=manifest,
+        existing_candidates=all_candidates,
+    )
+    all_candidates.extend(synthesis_candidates)
+    if synthesis_candidates:
+        raw_outputs.append(
+            {
+                "chunk_id": "document_synthesis",
+                "source_locator": "document_synthesis",
+                "raw_output": json.dumps([asdict(candidate) for candidate in synthesis_candidates], indent=2),
+            }
+        )
+
     raw_output_path.write_text(json.dumps(raw_outputs, indent=2), encoding="utf-8")
 
     normalized_output = {
@@ -152,7 +169,7 @@ def _coerce_candidates(
                 confidence=_coerce_confidence(item.get("confidence", 0.0)),
                 source_document_id=document_id,
                 source_locator=str(item.get("source_locator") or fallback_source_locator),
-                method="extracted",
+                method=str(item.get("method") or "extracted"),
                 notes=str(item.get("notes", "")).strip(),
                 source_urls=[],
             )
@@ -230,6 +247,7 @@ def _derive_manifest_fingerprint(manifest: Dict[str, Any]) -> str:
     digest = hashlib.sha256()
     payload = {
         "chunk_chars": manifest.get("chunk_chars"),
+        "chunk_overlap_chars": manifest.get("chunk_overlap_chars"),
         "documents": [
             {
                 "filename": document.get("filename"),
@@ -242,3 +260,118 @@ def _derive_manifest_fingerprint(manifest: Dict[str, Any]) -> str:
     }
     digest.update(json.dumps(payload, sort_keys=True).encode("utf-8"))
     return digest.hexdigest()
+
+
+def _run_document_synthesis(
+    client: OpenAI,
+    model: str,
+    manifest: Dict[str, Any],
+    existing_candidates: List[FieldCandidate],
+) -> List[FieldCandidate]:
+    missing_fields = _missing_core_fields(existing_candidates)
+    if not missing_fields:
+        return []
+
+    snippets = _select_relevant_snippets(manifest, limit=12)
+    if not snippets:
+        return []
+
+    prompt = build_document_synthesis_prompt(snippets, missing_fields)
+    response = client.responses.create(
+        model=model,
+        input=prompt,
+        temperature=0,
+    )
+    raw_text = response.output_text.strip()
+    try:
+        payload = json.loads(raw_text)
+    except json.JSONDecodeError:
+        payload = _extract_json_payload(raw_text)
+        if payload is None:
+            return []
+
+    return _coerce_candidates(
+        document_id="document_synthesis",
+        payload=payload,
+        fallback_source_locator="document_synthesis",
+    )
+
+
+def _missing_core_fields(candidates: List[FieldCandidate]) -> List[str]:
+    present = {}
+    for candidate in candidates:
+        try:
+            numeric = float(candidate.value)
+        except (TypeError, ValueError):
+            numeric = None
+        if candidate.field_name in {"revenue", "ebitda", "shares_outstanding", "cash", "debt"}:
+            if numeric is not None and numeric > 0:
+                present[candidate.field_name] = True
+        elif candidate.field_name in {"entry_multiple", "exit_multiple", "ebitda_margin_assumption"}:
+            if numeric is not None and numeric > 0:
+                present[candidate.field_name] = True
+    ordered = ["revenue", "ebitda", "shares_outstanding", "cash", "debt", "ebitda_margin_assumption", "entry_multiple"]
+    return [field_name for field_name in ordered if not present.get(field_name)]
+
+
+def _select_relevant_snippets(manifest: Dict[str, Any], limit: int = 12) -> List[Dict[str, str]]:
+    finance_markers = (
+        "revenue",
+        "sales",
+        "net revenue",
+        "total revenue",
+        "ebitda",
+        "adjusted ebitda",
+        "income",
+        "operating income",
+        "cash and cash equivalents",
+        "debt",
+        "long-term debt",
+        "shares outstanding",
+        "common stock",
+        "enterprise value",
+        "ev / ebitda",
+    )
+    scored = []
+    for chunk in manifest.get("chunks", []):
+        text = str(chunk.get("text", ""))
+        lower = text.lower()
+        score = sum(1 for marker in finance_markers if marker in lower)
+        if score <= 0:
+            continue
+        scored.append((score, chunk))
+    scored.sort(key=lambda item: (item[0], -int(item[1].get("chunk_index", 0))), reverse=True)
+    selected = []
+    seen = set()
+    for _, chunk in scored:
+        chunk_id = chunk.get("chunk_id")
+        if chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+        selected.append(
+            {
+                "source_locator": _build_source_locator(chunk),
+                "text": str(chunk.get("text", ""))[:2500],
+            }
+        )
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _extract_json_payload(raw_text: str) -> Dict[str, Any] | None:
+    text = raw_text.strip()
+    candidates = [text]
+    if "```" in text:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            candidates.append(text[start : end + 1])
+    for candidate in candidates:
+        try:
+            payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None

@@ -21,7 +21,7 @@ from document_pipeline.parsers.text_extractor import (
 )
 
 
-def run_local_ingestion(deal_id: str, chunk_chars: int = 4000) -> Dict[str, Any]:
+def run_local_ingestion(deal_id: str, chunk_chars: int = 4000, chunk_overlap_chars: int = 500) -> Dict[str, Any]:
     inbox_dir = INBOX_ROOT / deal_id
     if not inbox_dir.exists() or not inbox_dir.is_dir():
         raise FileNotFoundError(f"Deal inbox not found: {inbox_dir}")
@@ -58,7 +58,12 @@ def run_local_ingestion(deal_id: str, chunk_chars: int = 4000) -> Dict[str, Any]
         }
         _write_json(RAW_EXTRACTIONS_ROOT / f"{document_id}.json", raw_output)
 
-        doc_chunks = _build_chunks(document_id=document_id, payload=payload, chunk_chars=chunk_chars)
+        doc_chunks = _build_chunks(
+            document_id=document_id,
+            payload=payload,
+            chunk_chars=chunk_chars,
+            chunk_overlap_chars=chunk_overlap_chars,
+        )
         chunks.extend(doc_chunks)
         _write_json(
             CHUNKS_ROOT / f"{document_id}.json",
@@ -73,8 +78,9 @@ def run_local_ingestion(deal_id: str, chunk_chars: int = 4000) -> Dict[str, Any]
         "deal_id": deal_id,
         "document_count": len(documents),
         "chunk_count": len(chunks),
-        "manifest_fingerprint": _build_manifest_fingerprint(documents, chunk_chars),
+        "manifest_fingerprint": _build_manifest_fingerprint(documents, chunk_chars, chunk_overlap_chars),
         "chunk_chars": chunk_chars,
+        "chunk_overlap_chars": chunk_overlap_chars,
         "documents": [asdict(doc) for doc in documents],
         "chunks": [asdict(chunk) for chunk in chunks],
     }
@@ -82,9 +88,15 @@ def run_local_ingestion(deal_id: str, chunk_chars: int = 4000) -> Dict[str, Any]
     return manifest
 
 
-def _build_chunks(document_id: str, payload: Dict[str, Any], chunk_chars: int) -> List[ChunkRecord]:
+def _build_chunks(
+    document_id: str,
+    payload: Dict[str, Any],
+    chunk_chars: int,
+    chunk_overlap_chars: int,
+) -> List[ChunkRecord]:
     chunks: List[ChunkRecord] = []
     chunk_index = 1
+    step_chars = max(250, chunk_chars - max(0, chunk_overlap_chars))
 
     for page in payload["pages"]:
         page_text = " ".join(page["text"].split())
@@ -111,7 +123,9 @@ def _build_chunks(document_id: str, payload: Dict[str, Any], chunk_chars: int) -
                     )
                 )
                 chunk_index += 1
-            start = end
+            if end >= len(page_text):
+                break
+            start += step_chars
 
     return chunks
 
@@ -139,10 +153,15 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _build_manifest_fingerprint(documents: List[DocumentRecord], chunk_chars: int) -> str:
+def _build_manifest_fingerprint(
+    documents: List[DocumentRecord],
+    chunk_chars: int,
+    chunk_overlap_chars: int,
+) -> str:
     digest = hashlib.sha256()
     payload = {
         "chunk_chars": chunk_chars,
+        "chunk_overlap_chars": chunk_overlap_chars,
         "documents": [
             {
                 "filename": document.filename,

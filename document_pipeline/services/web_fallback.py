@@ -188,6 +188,7 @@ def _looks_like_public_company_case(manifest_payload: Dict[str, Any]) -> bool:
 def _build_web_fallback_prompt(company_name: str, missing_fields: List[str]) -> str:
     field_instructions = {
         "shares_outstanding": "latest basic shares outstanding or latest common shares outstanding",
+        "revenue": "latest annual revenue, total revenue, net revenue, or sales",
         "ebitda": "latest annual EBITDA or adjusted EBITDA if clearly cited",
         "entry_multiple": "reasonable current EV/EBITDA style trading multiple or analyst/public comps multiple",
         "public_share_price": "latest public stock price",
