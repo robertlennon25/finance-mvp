@@ -1,0 +1,19 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_ROOT = PROJECT_ROOT / "data"
+DOCUMENTS_ROOT = DATA_ROOT / "documents"
+INBOX_ROOT = DOCUMENTS_ROOT / "inbox"
+PROCESSED_ROOT = DOCUMENTS_ROOT / "processed"
+EXTRACTIONS_ROOT = DATA_ROOT / "extractions"
+RAW_EXTRACTIONS_ROOT = EXTRACTIONS_ROOT / "raw"
+NORMALIZED_EXTRACTIONS_ROOT = EXTRACTIONS_ROOT / "normalized"
+RESOLVED_EXTRACTIONS_ROOT = EXTRACTIONS_ROOT / "resolved"
+OVERRIDES_ROOT = EXTRACTIONS_ROOT / "overrides"
+CHUNKS_ROOT = DATA_ROOT / "chunks"
+PIPELINE_STATE_ROOT = DATA_ROOT / "pipeline_state"
+DEAL_METADATA_ROOT = PIPELINE_STATE_ROOT / "deals"
+PIPELINE_RUNS_ROOT = PIPELINE_STATE_ROOT / "runs"
