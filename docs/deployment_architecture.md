@@ -2,85 +2,89 @@
 
 ## Target stack
 
-- Frontend and light orchestration: Vercel
-- Auth, database, storage: Supabase
-- Python pipeline worker: Railway
+- Vercel: frontend and light orchestration routes
+- Supabase: auth, database, storage
+- Railway: Python worker
 
-## Route model
+## Responsibilities
 
-### Browser-facing
-
-- `/` landing page
-- `/library` example deals only
-- `/new` upload flow
-- `/deals/:dealId` deal detail
-- `/deals/:dealId/process?phase=extract|analysis`
-- `/deals/:dealId/review`
-- `/deals/:dealId/results`
-
-### App API routes on Vercel
-
-- `/api/deals`
-- `/api/deals/:dealId/pipeline`
-- `/api/deals/:dealId/overrides`
-- `/api/deals/:dealId/documents/:fileName`
-- `/api/deals/:dealId/workbook`
-
-These routes should stay stable even after moving documents to Supabase Storage and Python execution to Railway.
-
-## Why this route design matters
-
-- The frontend never references local filesystem paths directly.
-- Document and workbook access always goes through app routes.
-- Later, those routes can fetch from Supabase Storage or signed URLs without changing the UI.
-
-## Runtime split
-
-### Vercel responsibilities
+### Vercel
 
 - render Next.js UI
-- handle auth/session
-- create deals and upload metadata
-- enqueue or trigger pipeline runs
-- read deal state and show progress
+- authenticate users through Supabase
+- create deals and upload documents
+- save overrides
+- trigger Railway jobs
+- poll Railway job status
+- serve document/workbook downloads through stable app routes
 
-### Railway responsibilities
-
-- run PDF ingestion
-- run GPT-4.1 mini extraction
-- normalize and resolve values
-- build workbook and summary artifacts
-- write run status back to Supabase
-
-### Supabase responsibilities
+### Supabase
 
 - Google OAuth
-- user tables and app data
-- uploaded document storage
-- pipeline run history
-- overrides
-- workbook metadata and downloadable artifact locations
-
-## Data model to add next
-
+- `user_overrides`
 - `deals`
 - `documents`
 - `pipeline_runs`
-- `generated_workbooks`
 - `usage_counters`
+- private storage bucket for documents and remote artifacts
 
-## Local-to-cloud migration path
+### Railway
 
-### Local now
+- sync documents from Supabase Storage
+- sync user overrides before analysis
+- ingest/chunk/extract
+- resolve/prepare
+- build workbook
+- upload remote artifacts back to Supabase Storage
 
-- documents in `data/documents/`
-- extraction artifacts in `data/extractions/`
-- run metadata in `data/pipeline_state/`
-- workbook outputs in `outputs/`
+## Current cross-system contract
 
-### Cloud later
+Frontend -> Railway:
 
-- documents -> Supabase Storage
-- run metadata -> `pipeline_runs`
-- workbook summary + workbook location -> `generated_workbooks`
-- example visibility -> `deals.visibility` and `deals.is_example`
+- `POST /pipeline/run`
+- `GET /pipeline/run/{job_id}`
+
+Auth:
+
+- bearer header using `WORKER_SHARED_SECRET`
+
+Worker request body:
+
+```json
+{
+  "deal_id": "example_case",
+  "phase": "extract",
+  "max_chunks": 5,
+  "triggered_by": "frontend",
+  "user_id": "uuid-or-null"
+}
+```
+
+## Artifact contract
+
+Remote worker uploads:
+
+- `artifacts/<deal_id>/<deal_id>_review_payload.json`
+- `artifacts/<deal_id>/<deal_id>_model_input.json`
+- `artifacts/<deal_id>/<deal_id>_manifest.json`
+- `artifacts/<deal_id>/<deal_id>_valuation_model.xlsx`
+- `artifacts/<deal_id>/<deal_id>_summary.json`
+
+Frontend should treat those as the remote fallback source when local files are absent.
+
+## Current local dev fallback
+
+If `RAILWAY_WORKER_URL` is blank:
+
+- frontend routes still run local Python commands
+
+That path exists for dev convenience, not as the long-term production architecture.
+
+## Production direction
+
+The clean production direction is:
+
+1. uploads go directly to Supabase Storage
+2. Vercel stores metadata only
+3. Railway becomes the only heavy processing path
+4. frontend becomes storage-backed, not filesystem-backed

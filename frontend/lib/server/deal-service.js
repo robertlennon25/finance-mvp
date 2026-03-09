@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { promisify } from "util";
 
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
+import { isCuratedExampleDeal } from "@/lib/example-deals";
 import {
   getRailwayWorkerUrl,
   getSupabaseStorageBucket,
@@ -33,7 +34,12 @@ export async function getAvailableDeals() {
 
 export async function getExampleDeals() {
   const deals = await getAvailableDeals();
-  return deals.filter((deal) => deal.meta?.is_example !== false);
+  return deals.filter((deal) => {
+    if (deal.meta?.visibility === "public_example" || deal.meta?.is_example === true) {
+      return true;
+    }
+    return isCuratedExampleDeal(deal.dealId);
+  });
 }
 
 export async function getDealDetail(dealId, user = null) {
@@ -95,15 +101,17 @@ export async function getDealWorkspace(dealId, user = null) {
     return null;
   }
 
+  const mergedReview = applyOverridesToReview(review, overrides);
+
   return {
     dealId,
-    companyName: review.fields?.company_name?.selected?.value ?? "Unknown company",
+    companyName: mergedReview.fields?.company_name?.selected?.value ?? "Unknown company",
     documentCount: manifest.document_count ?? manifest.documents?.length ?? 0,
     workbookReady: Boolean(workbookPath),
-    review,
+    review: mergedReview,
     overrides,
     extractionMetadata,
-    pipeline: buildPipelineFromReview(review, manifest, Boolean(workbookPath), extractionMetadata)
+    pipeline: buildPipelineFromReview(mergedReview, manifest, Boolean(workbookPath), extractionMetadata)
   };
 }
 
@@ -238,7 +246,6 @@ export async function saveDealOverride(dealId, fieldName, value, user = null) {
   const overrides = await getDealOverrides(dealId, user);
   overrides[fieldName] = value;
   await writeOverrides(dealId, overrides, user);
-  await rerunResolutionArtifacts(dealId);
   return getDealWorkspace(dealId, user);
 }
 
@@ -246,7 +253,6 @@ export async function clearDealOverride(dealId, fieldName, user = null) {
   const overrides = await getDealOverrides(dealId, user);
   delete overrides[fieldName];
   await writeOverrides(dealId, overrides, user);
-  await rerunResolutionArtifacts(dealId);
   return getDealWorkspace(dealId, user);
 }
 
@@ -277,7 +283,6 @@ export async function applyRecommendedEstimates(dealId, user = null) {
   }
 
   await writeOverrides(dealId, overrides, user);
-  await rerunResolutionArtifacts(dealId);
   return {
     workspace: await getDealWorkspace(dealId, user),
     appliedCount,
@@ -293,11 +298,6 @@ async function writeOverrides(dealId, overrides, user = null) {
   await fs.mkdir(OVERRIDES_ROOT, { recursive: true });
   const overridePath = getOverridePath(dealId);
   await fs.writeFile(overridePath, JSON.stringify(overrides, null, 2), "utf-8");
-}
-
-async function rerunResolutionArtifacts(dealId) {
-  await runPythonCommand(["run_resolve_fields.py", dealId]);
-  await runPythonCommand(["run_prepare_model_inputs.py", dealId]);
 }
 
 export async function getDealDocuments(dealId) {
@@ -408,9 +408,9 @@ export async function getDealMeta(dealId) {
     return {
       deal_id: dealId,
       display_name: null,
-      is_example: true,
-      visibility: "example",
-      source: "seeded",
+      is_example: false,
+      visibility: "private",
+      source: "discovered",
     };
   }
 
@@ -751,6 +751,37 @@ function buildSupabaseStoragePath({ userId, dealId, fileName }) {
 
 function buildSupabaseArtifactPath(dealId, fileName) {
   return `artifacts/${dealId}/${fileName}`;
+}
+
+function applyOverridesToReview(review, overrides) {
+  if (!review?.fields || !overrides || Object.keys(overrides).length === 0) {
+    return review;
+  }
+
+  const fields = {};
+  for (const [fieldName, fieldState] of Object.entries(review.fields)) {
+    if (!(fieldName in overrides)) {
+      fields[fieldName] = fieldState;
+      continue;
+    }
+
+    fields[fieldName] = {
+      ...fieldState,
+      selected: {
+        value: overrides[fieldName],
+        confidence: 1,
+        source_document_id: null,
+        source_locator: "user_override",
+        method: "user_override",
+        notes: "Applied from saved override.",
+      },
+    };
+  }
+
+  return {
+    ...review,
+    fields,
+  };
 }
 
 async function getWorkbookPath(dealId) {

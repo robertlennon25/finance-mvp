@@ -6,26 +6,20 @@ import { useRouter } from "next/navigation";
 export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyEstimates = false }) {
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
+  const [progressPct, setProgressPct] = useState(5);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    let stepIndex = 0;
-    let intervalId = null;
     let pollTimeoutId = null;
 
     async function runPipeline() {
       setStatus("running");
       setError("");
-
-      intervalId = setInterval(() => {
-        stepIndex = Math.min(stepIndex + 1, steps.length - 1);
-        if (!cancelled) {
-          setActiveStep(stepIndex);
-        }
-      }, 1200);
+      setProgressPct(5);
+      setActiveStep(0);
 
       try {
         const response = await fetch(`/api/deals/${dealId}/pipeline`, {
@@ -41,19 +35,22 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
 
         const payload = await response.json().catch(() => ({}));
         if (payload.remote && payload.jobId) {
+          if (!cancelled) {
+            setStatusMessage(payload.message || "Pipeline job queued.");
+            setProgressPct((current) => Math.max(current, 10));
+          }
           await pollRemoteJob(payload.jobId);
           return;
         }
 
-        clearInterval(intervalId);
         if (!cancelled) {
           setActiveStep(steps.length - 1);
+          setProgressPct(100);
           setStatus("done");
           setStatusMessage(payload.message || "");
           window.setTimeout(() => router.push(targetHref), 1100);
         }
       } catch (err) {
-        clearInterval(intervalId);
         if (!cancelled) {
           setStatus("error");
           setError(err.message || "Pipeline execution failed.");
@@ -77,17 +74,19 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
         }
 
         if (typeof payload.progress === "number") {
+          const boundedProgress = Math.max(5, Math.min(100, payload.progress));
           const mappedStep = Math.max(
             0,
-            Math.min(steps.length - 1, Math.floor((payload.progress / 100) * steps.length))
+            Math.min(steps.length - 1, Math.floor((boundedProgress / 100) * steps.length))
           );
-          setActiveStep(mappedStep);
+          setActiveStep((current) => Math.max(current, mappedStep));
+          setProgressPct((current) => Math.max(current, boundedProgress));
         }
         setStatusMessage(payload.message || "");
 
         if (payload.status === "completed") {
-          clearInterval(intervalId);
           setActiveStep(steps.length - 1);
+          setProgressPct(100);
           setStatus("done");
           window.setTimeout(() => router.push(targetHref), 1100);
           return;
@@ -106,23 +105,18 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
     runPipeline();
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
       if (pollTimeoutId) {
         window.clearTimeout(pollTimeoutId);
       }
     };
   }, [applyEstimates, dealId, phase, router, steps, targetHref]);
 
-  const progress = Math.round(((activeStep + 1) / steps.length) * 100);
-
   return (
     <section className="panel">
       <div className="panel-inner loading-shell">
         <div className="progress-ring">
           <div className="progress-ring-inner">
-            <strong>{progress}%</strong>
+            <strong>{progressPct}%</strong>
             <span>{status === "done" ? "Done" : "Running"}</span>
           </div>
         </div>

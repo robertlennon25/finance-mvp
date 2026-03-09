@@ -251,6 +251,8 @@ def _build_estimate_candidates(grouped: Dict[str, list[dict[str, Any]]]) -> list
 
     revenue = _coerce_number(resolved_inputs.get("revenue"))
     ebitda = _coerce_number(resolved_inputs.get("ebitda"))
+    shares_outstanding = _coerce_number(resolved_inputs.get("shares_outstanding"))
+    ebitda_margin = _coerce_number(resolved_inputs.get("ebitda_margin_assumption"))
     entry_multiple = _coerce_number(resolved_inputs.get("entry_multiple"))
     exit_multiple = _coerce_number(resolved_inputs.get("exit_multiple"))
 
@@ -262,6 +264,37 @@ def _build_estimate_candidates(grouped: Dict[str, list[dict[str, Any]]]) -> list
                 round(margin, 4),
                 0.72,
                 "Derived from extracted EBITDA divided by extracted revenue.",
+            )
+        )
+
+    margin_basis = _positive_or_none(ebitda_margin)
+    margin_source_note = "existing EBITDA margin assumption"
+    if margin_basis is None and revenue and ebitda and revenue > 0:
+        margin_basis = max(min(ebitda / revenue, 0.60), 0.05)
+        margin_source_note = "extracted EBITDA divided by extracted revenue"
+    if margin_basis is None:
+        margin_basis = 0.20
+        margin_source_note = "baseline 20.0% EBITDA margin"
+
+    if revenue and revenue > 0 and not _has_positive_candidate(grouped, "ebitda"):
+        estimated_ebitda = revenue * margin_basis
+        estimates.append(
+            _estimate_candidate(
+                "ebitda",
+                int(round(estimated_ebitda)),
+                0.62 if margin_source_note != "baseline 20.0% EBITDA margin" else 0.48,
+                f"Estimated as revenue multiplied by {margin_source_note}.",
+            )
+        )
+
+    if ebitda and ebitda > 0 and margin_basis and margin_basis > 0 and not _has_positive_candidate(grouped, "revenue"):
+        estimated_revenue = ebitda / margin_basis
+        estimates.append(
+            _estimate_candidate(
+                "revenue",
+                int(round(estimated_revenue)),
+                0.54 if margin_source_note != "baseline 20.0% EBITDA margin" else 0.4,
+                f"Estimated as EBITDA divided by {margin_source_note}.",
             )
         )
 
@@ -327,6 +360,17 @@ def _build_estimate_candidates(grouped: Dict[str, list[dict[str, Any]]]) -> list
             )
         )
 
+    if not _has_positive_candidate(grouped, "shares_outstanding"):
+        fallback_shares = max(shares_outstanding or 0, 1.0)
+        estimates.append(
+            _estimate_candidate(
+                "shares_outstanding",
+                int(round(fallback_shares)),
+                0.12,
+                "Fallback placeholder of 1 share used only to prevent divide-by-zero in valuation outputs. Replace this with an actual share count before relying on per-share conclusions.",
+            )
+        )
+
     return estimates
 
 
@@ -369,3 +413,9 @@ def _coerce_number(value: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return numeric
+
+
+def _positive_or_none(value: float | None) -> float | None:
+    if value is None or value <= 0:
+        return None
+    return value

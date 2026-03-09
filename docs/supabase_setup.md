@@ -1,15 +1,24 @@
 # Supabase Setup
 
-## Purpose
-
-Supabase is the auth, database, and storage layer for:
+## Current role of Supabase
 
 - Google OAuth
-- user overrides
-- deals metadata
-- document metadata
-- pipeline run metadata
-- uploaded document storage
+- user override persistence
+- deal/document/pipeline metadata
+- private storage for uploaded docs and remote worker artifacts
+
+## Required dashboard setup
+
+1. create project
+2. enable Google provider in Auth
+3. run SQL migrations in [`supabase/migrations/`](/Users/robertlennon/Desktop/finance_ai_mvp/supabase/migrations)
+4. create private bucket `deal-documents`
+5. configure redirect URLs for local and deployed frontend
+
+## Current migrations
+
+- [`supabase/migrations/20260309_create_user_overrides.sql`](/Users/robertlennon/Desktop/finance_ai_mvp/supabase/migrations/20260309_create_user_overrides.sql)
+- [`supabase/migrations/20260309_create_deal_runtime_tables.sql`](/Users/robertlennon/Desktop/finance_ai_mvp/supabase/migrations/20260309_create_deal_runtime_tables.sql)
 
 ## Required env vars
 
@@ -21,35 +30,29 @@ Frontend:
 - `NEXT_PUBLIC_SITE_URL`
 - `SUPABASE_STORAGE_BUCKET`
 
-## Setup order
+Railway:
 
-1. Create a Supabase project.
-2. Enable Google OAuth in Supabase Auth.
-3. Run both SQL migrations in `supabase/migrations/`.
-4. Create a private storage bucket named `deal-documents`.
-5. Add env vars to `frontend/.env.local`.
-6. Restart the frontend.
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET`
 
-## Migrations to run
+## Current storage usage
 
-- `supabase/migrations/20260309_create_user_overrides.sql`
-- `supabase/migrations/20260309_create_deal_runtime_tables.sql`
+Same bucket currently stores:
 
-## Storage bucket
+- uploaded/source documents
+- remote worker artifacts
 
-Recommended bucket name:
+That is acceptable for now because the paths are separated:
 
-- `deal-documents`
+- `private/...`
+- `artifacts/...`
 
-Recommended mode:
+## Important note
 
-- private
+The service-role key is required on the server side for:
 
-## What the app currently writes to Supabase
-
-- `user_overrides`
-- `deals`
-- `documents`
-- `pipeline_runs`
-
-The app still keeps local copies for compatibility during development.
+- upload sync
+- document metadata reads
+- remote artifact reads
+- worker document and override sync

@@ -1,36 +1,30 @@
-# Supabase Plan
+# Supabase
 
-This folder now holds the initial auth/runtime migrations:
+This folder holds the SQL migrations and setup notes for the app runtime.
+
+## Active scope
+
+- Google OAuth
+- user overrides
+- deal metadata
+- document metadata
+- pipeline run metadata
+- usage counters
+
+## Migrations
 
 - [`migrations/20260309_create_user_overrides.sql`](/Users/robertlennon/Desktop/finance_ai_mvp/supabase/migrations/20260309_create_user_overrides.sql)
 - [`migrations/20260309_create_deal_runtime_tables.sql`](/Users/robertlennon/Desktop/finance_ai_mvp/supabase/migrations/20260309_create_deal_runtime_tables.sql)
 
-Current scope:
+## Current app expectations
 
-- Google OAuth through Supabase Auth
-- `user_overrides` table keyed by `user_id + deal_id + field_name`
-- `deals`, `documents`, `pipeline_runs`, and `usage_counters` tables
-- row-level security so users only see their own overrides
-- storage bucket for uploaded deal documents
+- private bucket named `deal-documents`
+- Google provider enabled
+- redirect URLs configured for local and deployed frontend
+- service-role key available to frontend server routes and Railway worker
 
-Recommended setup:
+## Important retained context
 
-1. Create a Supabase project.
-2. In Supabase Auth, enable Google as an auth provider.
-3. Add Google OAuth credentials in the Supabase dashboard.
-4. Run both SQL migrations in the Supabase SQL editor.
-5. Create a storage bucket named `deal-documents`.
-6. Set the bucket to private.
-7. Set these frontend env vars:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `NEXT_PUBLIC_SITE_URL`
-   - `SUPABASE_STORAGE_BUCKET`
-
-Notes:
-
-- `SUPABASE_SERVICE_ROLE_KEY` must stay server-only.
-- Uploaded documents are now written locally and, when configured, uploaded to Supabase Storage as well.
-- Deal/document/pipeline-run metadata can now be written to Supabase through the service-role client.
-- The current frontend still reads local review payload JSON for extracted values.
+- worker and frontend currently share the same storage bucket
+- remote worker uploads artifacts under `artifacts/<deal_id>/...`
+- frontend may read documents and artifacts from Supabase when local files are missing

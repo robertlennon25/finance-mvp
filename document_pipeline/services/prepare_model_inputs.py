@@ -28,6 +28,9 @@ BASE_DEFAULTS: Dict[str, Any] = {
 }
 
 NONZERO_WARNING_FIELDS = {
+    "revenue",
+    "ebitda",
+    "shares_outstanding",
     "revenue_growth_assumption",
     "ebitda_margin_assumption",
     "capex_pct_revenue",

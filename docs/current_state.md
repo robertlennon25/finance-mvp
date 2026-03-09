@@ -1,54 +1,75 @@
 # Current State
 
-## Product shape
+## Product state
 
-The app now supports:
+The app currently supports:
 
 - Google sign-in through Supabase
-- a landing page with `Start your LBO` and `Pick an existing LBO`
-- existing-deal browsing
-- local file upload into `data/documents/inbox/<deal_id>/`
+- document upload and example-deal browsing
 - extraction pipeline triggers from the frontend
-- override review
+- override review and reasonable estimate suggestions
 - workbook generation and download
+- remote processing through Railway
 
-## What is local-only today
+## Current architecture
 
-- uploaded documents are stored on local disk
-- extraction artifacts are stored on local disk
-- workbook output is stored on local disk
-- Python pipeline commands are run synchronously from frontend API routes
+- frontend: Next.js in [`frontend/`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend)
+- worker: FastAPI in [`worker_api/`](/Users/robertlennon/Desktop/finance_ai_mvp/worker_api)
+- auth/storage/metadata: Supabase
+- workbook engine: [`excel_model/`](/Users/robertlennon/Desktop/finance_ai_mvp/excel_model)
+- extraction pipeline: [`document_pipeline/`](/Users/robertlennon/Desktop/finance_ai_mvp/document_pipeline)
 
-## What is in Supabase today
+## Local vs remote behavior
 
-- auth sessions
-- Google OAuth
-- `user_overrides` table for override persistence
+### Local
 
-## What still needs to move to Supabase
+- documents are still written to local dev folders
+- local scripts can still run directly
+- frontend can fall back to local Python if `RAILWAY_WORKER_URL` is blank
 
-- deal metadata
-- document metadata
-- uploaded file storage
-- usage counters
-- cached extraction metadata
+### Remote
 
-## Document access rule
+- Railway pulls documents from Supabase Storage
+- worker uploads review/workbook artifacts back to Supabase Storage
+- frontend reads cloud artifacts if local files are missing
 
-- frontend links should always open documents through app routes such as `/api/deals/<deal_id>/documents/<file_name>`
+## Current storage conventions
+
+Supabase bucket:
+
+- `deal-documents`
+
+Paths in active use:
+
+- uploaded/source documents: `private/<user_id_or_anonymous>/<deal_id>/<filename>`
+- remote artifacts: `artifacts/<deal_id>/<filename>`
+
+## Important frontend truth
+
+- document links must always go through app routes
+- workbook downloads must always go through app routes
 - do not expose local filesystem paths in the UI
-- this route abstraction is the seam that will later switch from local disk to Supabase Storage on Vercel
+- example-deal library is now explicit/curated, not inferred from all discovered deals
 
-## Important code areas
+## Important known constraints
 
-- frontend routes and UI: `frontend/`
-- extraction and normalization: `document_pipeline/`
-- workbook builder: `excel_model/`
-- orchestration scripts: `run_*.py`
+- local upload flow still writes a local copy first; production should move toward storage-first behavior
+- local review/update flows should not depend on local `*_field_candidates.json` after a Railway run
+- overrides are now best treated as persisted user state, not a trigger to rerun local resolution on the frontend server
+- Railway worker must receive `user_id` for analysis runs so it can sync user overrides before build
 
-## Immediate next priorities
+## Current likely fragile areas
 
-1. cache extraction runs and avoid duplicate AI calls
-2. add sensible estimate suggestions for suspicious zero inputs
-3. add request and upload limits per user
-4. move uploaded documents and deal state into Supabase Storage and tables
+- remote artifact sync and readback
+- analysis flow after applying estimates/overrides
+- mixed local/remote state for newly created deals
+- production upload behavior on Vercel
+
+## Files to read first after compaction
+
+1. [`README.md`](/Users/robertlennon/Desktop/finance_ai_mvp/README.md)
+2. [`docs/deployment_architecture.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/deployment_architecture.md)
+3. [`docs/roadmap.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/roadmap.md)
+4. [`frontend/lib/server/deal-service.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/server/deal-service.js)
+5. [`worker_api/pipeline.py`](/Users/robertlennon/Desktop/finance_ai_mvp/worker_api/pipeline.py)
+6. [`document_pipeline/services/resolve_fields.py`](/Users/robertlennon/Desktop/finance_ai_mvp/document_pipeline/services/resolve_fields.py)

@@ -1,126 +1,36 @@
-# Frontend And Deployment Plan
+# Frontend Deployment Plan
 
-## Frontend choice
+## Current deployment assumptions
 
-Use `Next.js` for the frontend instead of a bare React SPA.
+- deploy [`frontend/`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend) to Vercel as the project root
+- use Node 20+
+- use Supabase for auth and server-side metadata access
+- use Railway for remote pipeline execution
 
-Reasons:
+## Required Vercel env vars
 
-- natural Vercel deployment target
-- easy server routes for filesystem-backed local development
-- simple migration path to Supabase Auth and Storage
-- easy split between review UI and pipeline API actions
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SITE_URL`
+- `SUPABASE_STORAGE_BUCKET`
+- `RAILWAY_WORKER_URL`
+- `WORKER_SHARED_SECRET`
 
-## Current local frontend
+## Important config rules
 
-The lightweight frontend lives in `frontend/`.
+- `RAILWAY_WORKER_URL` must not have a trailing slash
+- `WORKER_SHARED_SECRET` should be a simple alphanumeric string; avoid `#` unless quoted
+- Google OAuth redirect URLs must match the actual local/dev port
 
-Current responsibilities:
+## Current production caveat
 
-- read review payloads from `data/extractions/resolved/*_review_payload.json`
-- list available deals
-- show pipeline status
-- show selected field values and top candidate options
-- show what will eventually be editable in the UI
+Uploads still write a local dev copy first in the frontend server before syncing to Supabase. That is acceptable for local development, but production should move to storage-first upload handling.
 
-It is intentionally read-first right now. The next step after wiring Supabase is to add:
+## Safe test order
 
-- deal creation
-- file upload
-- override submission
-- pipeline trigger buttons
-
-Current local override flow:
-
-- frontend posts to `/api/deals/:dealId/overrides`
-- the route writes local override JSON
-- the route reruns `resolve` and `prepare` artifacts
-
-This is now the active Supabase seam:
-
-- extracted review payloads still come from local JSON artifacts
-- override writes go to the `user_overrides` table in Supabase
-- the route still reruns local Python `resolve` and `prepare` commands
-- later, replace local Python command execution with a background job trigger
-
-## End-to-end pipeline
-
-### Local mode
-
-1. user drops files in `data/documents/inbox/<deal_id>/`
-2. run `python3 run_local_ingestion.py <deal_id>`
-3. run `python3 run_chunk_extraction.py <deal_id> --max-chunks N`
-4. run `python3 run_resolve_fields.py <deal_id>`
-5. run `python3 run_prepare_model_inputs.py <deal_id>`
-6. run `python3 run_build_workbook_from_deal.py <deal_id>`
-
-### Future app mode
-
-1. user signs in with Google via Supabase Auth
-2. user creates a deal workspace
-3. user uploads files
-4. files are stored in Supabase Storage
-5. backend job copies/processes files into extraction pipeline
-6. extracted values are shown in review UI
-7. user accepts or overrides fields
-8. backend generates workbook and stores it
-9. user downloads workbook
-
-## Supabase OAuth plan
-
-Use Google OAuth through Supabase Auth.
-
-Frontend flow:
-
-1. user clicks `Sign in with Google`
-2. call `supabase.auth.signInWithOAuth({ provider: "google" })`
-3. Supabase handles redirect and session
-4. frontend reads session and scopes the user to their deals
-
-Tables to add in Supabase:
-
-- `deals`
-- `documents`
-- `document_chunks`
-- `field_candidates`
-- `resolved_fields`
-- `user_overrides`
-- `generated_workbooks`
-
-Current implemented table:
-
-- `user_overrides`
-
-## Deployment plan
-
-### Vercel
-
-- deploy the `frontend/` directory as the app root
-- run the app on Node 20 or newer
-- use Vercel project env vars for Supabase public keys
-- keep OpenAI and service-role keys only in server env vars
-
-### Backend choice
-
-Short term:
-
-- keep Python extraction/model generation local or on a simple worker box
-
-Medium term:
-
-- either wrap Python commands behind API jobs
-- or move orchestration into a small Python service invoked by Vercel routes / queue jobs
-
-## Next implementation steps
-
-1. add frontend route handlers for reading deal data via local filesystem
-2. add override editing UI
-3. add Supabase client setup
-4. add Google sign-in button and auth shell
-5. decide whether workbook generation stays Python-only behind a job trigger
-
-Current status:
-
-- Supabase client setup is scaffolded in `frontend/lib/supabase/`
-- Google sign-in shell is live in the frontend
-- override persistence is wired to Supabase for authenticated users
+1. confirm Railway `/health`
+2. run local frontend against Railway
+3. test an existing deal
+4. test a fresh upload
+5. only then promote to Vercel preview/production
