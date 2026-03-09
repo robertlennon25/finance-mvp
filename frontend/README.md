@@ -76,3 +76,32 @@ Deals appear there only if one of these is true:
 - their metadata explicitly sets `visibility: "public_example"`
 
 Discovered local test deals are no longer treated as examples by default.
+
+### Fastest way to choose example deals
+
+Edit:
+
+- [`lib/example-deals.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/example-deals.js)
+
+and keep only the deal ids you want publicly visible.
+
+### Metadata-driven alternative
+
+You can also mark a deal as public by setting local or Supabase metadata to either:
+
+- `is_example: true`
+- `visibility: "public_example"`
+
+### Manual Supabase example upload
+
+For an example case you want users to try:
+
+1. create or choose a `deal_id`
+2. upload its source documents into the `deal-documents` bucket under:
+   - `private/<owner>/<deal_id>/<filename>` for a private/dev copy, or
+   - a consistent owner namespace you control for examples
+3. make sure remote worker artifacts exist under:
+   - `artifacts/<deal_id>/...`
+4. add the deal id to [`lib/example-deals.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/example-deals.js)
+
+That is the simplest current way to curate the library before a fuller admin UI exists.

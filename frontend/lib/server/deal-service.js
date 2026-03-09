@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { promisify } from "util";
 
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
-import { isCuratedExampleDeal } from "@/lib/example-deals";
+import { getStaticCuratedExampleDealIds } from "@/lib/example-deals";
 import {
   getRailwayWorkerUrl,
   getSupabaseStorageBucket,
@@ -33,13 +33,9 @@ export async function getAvailableDeals() {
 }
 
 export async function getExampleDeals() {
-  const deals = await getAvailableDeals();
-  return deals.filter((deal) => {
-    if (deal.meta?.visibility === "public_example" || deal.meta?.is_example === true) {
-      return true;
-    }
-    return isCuratedExampleDeal(deal.dealId);
-  });
+  const curatedIds = await getCuratedExampleDealIds();
+  const deals = await Promise.all(curatedIds.map((dealId) => getDealDetail(dealId)));
+  return deals.filter(Boolean).sort((a, b) => a.dealId.localeCompare(b.dealId));
 }
 
 export async function getDealDetail(dealId, user = null) {
@@ -456,6 +452,28 @@ async function getAllDealIds() {
   }
 
   return Array.from(ids).sort();
+}
+
+async function getCuratedExampleDealIds() {
+  const ids = new Set();
+
+  for (const fileName of await safeReadDir(DEAL_METADATA_ROOT)) {
+    if (!fileName.endsWith(".json")) {
+      continue;
+    }
+    const payload = JSON.parse(
+      await fs.readFile(path.join(DEAL_METADATA_ROOT, fileName), "utf-8")
+    );
+    if (payload?.is_example === true || payload?.visibility === "public_example") {
+      ids.add(String(payload.deal_id || fileName.replace(/\.json$/, "")));
+    }
+  }
+
+  for (const dealId of getStaticCuratedExampleDealIds()) {
+    ids.add(dealId);
+  }
+
+  return Array.from(ids);
 }
 
 async function saveDealMeta(dealId, payload) {
