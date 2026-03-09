@@ -44,6 +44,7 @@ def create_pipeline_run(
         payload.deal_id,
         payload.phase,
         payload.max_chunks,
+        payload.user_id,
     )
     return PipelineRunResponse(job_id=job_id, status="queued")
 
@@ -58,9 +59,15 @@ def get_pipeline_run(job_id: str, authorization: str | None = Header(default=Non
     return job
 
 
-def _run_job_safe(job_id: str, deal_id: str, phase: str, max_chunks: int | None) -> None:
+def _run_job_safe(
+    job_id: str,
+    deal_id: str,
+    phase: str,
+    max_chunks: int | None,
+    user_id: str | None,
+) -> None:
     try:
-        run_pipeline_job(job_id, deal_id, phase, max_chunks)
+        run_pipeline_job(job_id, deal_id, phase, max_chunks, user_id)
     except Exception as exc:  # noqa: BLE001
         update_job(job_id, status="failed", message=str(exc))
 

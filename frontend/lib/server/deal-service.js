@@ -147,9 +147,9 @@ export async function createDealFromUploads(dealName, files, user = null) {
   return getDealDetail(dealId);
 }
 
-export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5 } = {}) {
+export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5, userId = null } = {}) {
   if (isRailwayWorkerConfigured()) {
-    return triggerRailwayPipeline(dealId, { phase, maxChunks });
+    return triggerRailwayPipeline(dealId, { phase, maxChunks, userId });
   }
 
   if (phase === "analysis") {
@@ -575,7 +575,7 @@ async function appendSupabasePipelineRun(dealId, payload) {
   }
 }
 
-async function triggerRailwayPipeline(dealId, { phase, maxChunks }) {
+async function triggerRailwayPipeline(dealId, { phase, maxChunks, userId = null }) {
   const response = await fetch(`${getRailwayWorkerUrl()}/pipeline/run`, {
     method: "POST",
     headers: {
@@ -587,6 +587,7 @@ async function triggerRailwayPipeline(dealId, { phase, maxChunks }) {
       phase,
       max_chunks: maxChunks,
       triggered_by: "frontend",
+      user_id: userId,
     }),
     cache: "no-store",
   });

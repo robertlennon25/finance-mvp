@@ -9,10 +9,14 @@ from document_pipeline.services.prepare_model_inputs import prepare_model_inputs
 from document_pipeline.services.resolve_fields import resolve_deal_fields
 from run_build_workbook_from_deal import main as build_workbook_main
 from worker_api.job_store import update_job
-from worker_api.supabase_sync import sync_deal_documents_from_supabase, upload_deal_artifact
+from worker_api.supabase_sync import (
+    sync_deal_documents_from_supabase,
+    sync_deal_overrides_from_supabase,
+    upload_deal_artifact,
+)
 
 
-def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | None) -> None:
+def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | None, user_id: str | None = None) -> None:
     synced = sync_deal_documents_from_supabase(deal_id)
     update_job(
         job_id,
@@ -20,6 +24,9 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
         progress=5,
         message=f"Synced {synced} document(s) from Supabase Storage",
     )
+    override_count = sync_deal_overrides_from_supabase(deal_id, user_id)
+    if override_count:
+        update_job(job_id, progress=10, message=f"Synced {override_count} override(s)")
 
     if phase in {"extract", "full"}:
         update_job(job_id, progress=15, message="Reading inputs")

@@ -11,6 +11,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function POST(request, { params }) {
   try {
+    const user = await getAuthenticatedUser();
     const detail = await getDealDetail(params.dealId);
     if (!detail) {
       return NextResponse.json({ error: "Deal not found." }, { status: 404 });
@@ -24,13 +25,16 @@ export async function POST(request, { params }) {
       : 5;
 
     if (phase === "analysis" && applyEstimates && isSupabasePersistenceConfigured()) {
-      const user = await getAuthenticatedUser();
       if (user) {
         await applyRecommendedEstimates(params.dealId, user);
       }
     }
 
-    const result = await runDealPipeline(params.dealId, { phase, maxChunks });
+    const result = await runDealPipeline(params.dealId, {
+      phase,
+      maxChunks,
+      userId: user?.id ?? null,
+    });
     return NextResponse.json({ ok: true, phase, ...result });
   } catch (error) {
     console.error("Pipeline route failed", error);

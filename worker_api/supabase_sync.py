@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from document_pipeline.config import INBOX_ROOT
+import json
+
+from document_pipeline.config import INBOX_ROOT, OVERRIDES_ROOT
 from worker_api.config import (
     SUPABASE_SERVICE_ROLE_KEY,
     SUPABASE_STORAGE_BUCKET,
@@ -73,3 +75,31 @@ def upload_deal_artifact(local_path: Path, storage_path: str, content_type: str)
     error = getattr(result, "error", None)
     if error:
         raise RuntimeError(f"Failed to upload artifact {local_path.name}: {error}")
+
+
+def sync_deal_overrides_from_supabase(deal_id: str, user_id: str | None) -> int:
+    if not is_supabase_worker_configured() or not user_id:
+        return 0
+
+    try:
+        from supabase import create_client
+    except ImportError as exc:  # pragma: no cover - depends on env packages
+        raise RuntimeError(
+            "Supabase worker dependencies are not installed. Run pip install -r requirements.txt."
+        ) from exc
+
+    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    response = (
+        supabase.table("user_overrides")
+        .select("field_name,override_value")
+        .eq("deal_id", deal_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    rows = response.data or []
+    overrides = {row["field_name"]: row["override_value"] for row in rows}
+
+    OVERRIDES_ROOT.mkdir(parents=True, exist_ok=True)
+    override_path = OVERRIDES_ROOT / f"{deal_id}_overrides.json"
+    override_path.write_text(json.dumps(overrides, indent=2), encoding="utf-8")
+    return len(overrides)
