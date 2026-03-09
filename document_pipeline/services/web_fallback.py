@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
@@ -38,6 +39,7 @@ def get_web_fallback_candidates(
         return []
 
     normalized_path = NORMALIZED_EXTRACTIONS_ROOT / f"{deal_id}_web_fallback_candidates.json"
+    status_path = NORMALIZED_EXTRACTIONS_ROOT / f"{deal_id}_web_fallback_status.json"
     raw_output_path = RAW_EXTRACTIONS_ROOT / f"{deal_id}_web_fallback_raw.json"
     cache_key = json.dumps(
         {
@@ -51,10 +53,26 @@ def get_web_fallback_candidates(
     if normalized_path.exists():
         cached = json.loads(normalized_path.read_text(encoding="utf-8"))
         if cached.get("cache_key") == cache_key:
+            _write_status(
+                status_path,
+                deal_id=deal_id,
+                company_name=company_name,
+                missing_fields=missing_fields,
+                status="cache_hit",
+                reason="Reused cached web fallback candidates.",
+            )
             return cached.get("candidates", [])
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
+        _write_status(
+            status_path,
+            deal_id=deal_id,
+            company_name=company_name,
+            missing_fields=missing_fields,
+            status="skipped",
+            reason="OPENAI_API_KEY is not configured.",
+        )
         return []
 
     client = OpenAI(api_key=api_key)
@@ -75,9 +93,17 @@ def get_web_fallback_candidates(
         encoding="utf-8",
     )
 
-    try:
-        payload = json.loads(raw_text)
-    except json.JSONDecodeError:
+    payload = _extract_json_payload(raw_text)
+    if payload is None:
+        _write_status(
+            status_path,
+            deal_id=deal_id,
+            company_name=company_name,
+            missing_fields=missing_fields,
+            status="parse_failed",
+            reason="Web fallback returned text that could not be parsed as JSON.",
+            extra={"raw_output_path": str(raw_output_path)},
+        )
         return []
 
     candidates = []
@@ -110,6 +136,15 @@ def get_web_fallback_candidates(
             indent=2,
         ),
         encoding="utf-8",
+    )
+    _write_status(
+        status_path,
+        deal_id=deal_id,
+        company_name=company_name,
+        missing_fields=missing_fields,
+        status="completed",
+        reason=f"Web fallback returned {len(candidates)} candidate(s).",
+        extra={"normalized_path": str(normalized_path)},
     )
     return candidates
 
@@ -188,3 +223,56 @@ def _build_web_fallback_prompt(company_name: str, missing_fields: List[str]) -> 
         "For entry_multiple, return a numeric EBITDA multiple. "
         "If a field cannot be supported clearly, omit it."
     )
+
+
+def _extract_json_payload(raw_text: str) -> Dict[str, Any] | None:
+    text = raw_text.strip()
+    candidates = [text]
+
+    fenced_matches = re.findall(r"```json\s*(\{.*?\})\s*```", text, flags=re.DOTALL | re.IGNORECASE)
+    candidates.extend(fenced_matches)
+
+    generic_fenced = re.findall(r"```\s*(\{.*?\})\s*```", text, flags=re.DOTALL)
+    candidates.extend(generic_fenced)
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidates.append(text[start : end + 1])
+
+    seen = set()
+    for candidate in candidates:
+        cleaned = candidate.strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        try:
+            payload = json.loads(cleaned)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
+
+
+def _write_status(
+    status_path,
+    *,
+    deal_id: str,
+    company_name: str,
+    missing_fields: List[str],
+    status: str,
+    reason: str,
+    extra: Dict[str, Any] | None = None,
+) -> None:
+    payload: Dict[str, Any] = {
+        "deal_id": deal_id,
+        "company_name": company_name,
+        "missing_fields": missing_fields,
+        "status": status,
+        "reason": reason,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if extra:
+        payload.update(extra)
+    status_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
