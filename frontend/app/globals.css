@@ -558,6 +558,17 @@ a {
   gap: 8px;
 }
 
+.compact-input-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.compact-field {
+  display: grid;
+  gap: 6px;
+}
+
 .icon-step-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -621,6 +632,10 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .compact-input-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .auth-banner {
     align-items: flex-start;
     flex-direction: column;
@@ -636,5 +651,11 @@ a {
   .progress-ring {
     width: 180px;
     height: 180px;
+  }
+}
+
+@media (max-width: 640px) {
+  .compact-input-grid {
+    grid-template-columns: 1fr;
   }
 }

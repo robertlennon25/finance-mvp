@@ -6,6 +6,7 @@ The app currently supports:
 
 - Google sign-in through Supabase
 - document upload and example-deal browsing
+- direct manual entry of key inputs for a compact no-document start flow
 - extraction pipeline triggers from the frontend
 - override review and reasonable estimate suggestions
 - workbook generation and download

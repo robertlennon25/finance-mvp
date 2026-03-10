@@ -6,6 +6,7 @@ Next.js review/orchestration app for the LBO workflow.
 
 - landing page and example-deal library
 - upload flow
+- compact manual-entry flow
 - document viewing
 - extraction and analysis loading screens
 - override review UI
@@ -59,6 +60,19 @@ nvm use 20
 npm install
 npm run dev
 ```
+
+## New-deal modes
+
+`/new` now supports two start paths:
+
+- document upload
+- direct number entry
+
+The direct-entry path is intentionally compact and still lands on the same review screen, so users can:
+
+- see seeded values
+- receive reasonable-estimate suggestions for missing fields
+- override anything before running analysis
 
 ## Known constraints
 

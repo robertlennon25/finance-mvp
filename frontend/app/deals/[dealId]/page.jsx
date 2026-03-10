@@ -6,6 +6,8 @@ import { DocumentList } from "@/components/document-list";
 import { RunHistoryPanel } from "@/components/run-history-panel";
 import { getDealDetail } from "@/lib/server/deal-service";
 
+export const dynamic = "force-dynamic";
+
 export default async function DealPage({ params }) {
   const detail = await getDealDetail(params.dealId);
   if (!detail) {

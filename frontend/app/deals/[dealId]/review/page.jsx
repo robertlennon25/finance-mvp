@@ -8,6 +8,8 @@ import { getDealWorkspace } from "@/lib/server/deal-service";
 import { isSupabasePersistenceConfigured } from "@/lib/supabase/config";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export default async function DealReviewPage({ params }) {
   const user = await getAuthenticatedUser();
   const workspace = await getDealWorkspace(

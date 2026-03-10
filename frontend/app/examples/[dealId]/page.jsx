@@ -8,6 +8,8 @@ import { RunHistoryPanel } from "@/components/run-history-panel";
 import { isCuratedExampleDeal } from "@/lib/example-deals";
 import { getDealDetail } from "@/lib/server/deal-service";
 
+export const dynamic = "force-dynamic";
+
 export default async function ExampleDealPage({ params }) {
   const detail = await getDealDetail(params.dealId);
   const isExample =

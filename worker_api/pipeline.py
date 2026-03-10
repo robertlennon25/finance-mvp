@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from document_pipeline.config import NORMALIZED_EXTRACTIONS_ROOT, RESOLVED_EXTRACTIONS_ROOT
+import json
+
+from document_pipeline.config import NORMALIZED_EXTRACTIONS_ROOT, OVERRIDES_ROOT, RESOLVED_EXTRACTIONS_ROOT
 from document_pipeline.services.local_pipeline import run_local_ingestion
 from document_pipeline.services.openai_extraction import run_chunk_extraction
 from document_pipeline.services.prepare_model_inputs import prepare_model_inputs_for_deal
@@ -10,6 +12,7 @@ from document_pipeline.services.resolve_fields import resolve_deal_fields
 from run_build_workbook_from_deal import main as build_workbook_main
 from worker_api.job_store import update_job
 from worker_api.supabase_sync import (
+    sync_deal_artifacts_from_supabase,
     sync_deal_documents_from_supabase,
     sync_deal_overrides_from_supabase,
     upload_deal_artifact,
@@ -18,11 +21,12 @@ from worker_api.supabase_sync import (
 
 def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | None, user_id: str | None = None) -> None:
     synced = sync_deal_documents_from_supabase(deal_id)
+    artifact_sync_count = sync_deal_artifacts_from_supabase(deal_id)
     update_job(
         job_id,
         status="running",
         progress=5,
-        message=f"Synced {synced} document(s) from Supabase Storage",
+        message=f"Synced {synced} document(s) and {artifact_sync_count} artifact(s) from Supabase Storage",
     )
     override_count = sync_deal_overrides_from_supabase(deal_id, user_id)
     if override_count:
@@ -47,8 +51,11 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
 
     if phase in {"analysis", "full"}:
         update_job(job_id, progress=75, message="Preparing model inputs")
-        resolve_deal_fields(deal_id)
-        prepare_model_inputs_for_deal(deal_id)
+        if _has_field_candidates(deal_id):
+            resolve_deal_fields(deal_id)
+            prepare_model_inputs_for_deal(deal_id)
+        else:
+            _apply_overrides_to_existing_model_input(deal_id)
         upload_review_artifacts(deal_id)
 
         update_job(job_id, progress=90, message="Building workbook")
@@ -96,3 +103,53 @@ def upload_workbook_artifacts(deal_id: str) -> None:
 
 def _artifact_storage_path(deal_id: str, file_name: str) -> str:
     return f"artifacts/{deal_id}/{file_name}"
+
+
+def _has_field_candidates(deal_id: str) -> bool:
+    return (NORMALIZED_EXTRACTIONS_ROOT / f"{deal_id}_field_candidates.json").exists()
+
+
+def _apply_overrides_to_existing_model_input(deal_id: str) -> None:
+    model_input_path = RESOLVED_EXTRACTIONS_ROOT / f"{deal_id}_model_input.json"
+    review_path = RESOLVED_EXTRACTIONS_ROOT / f"{deal_id}_review_payload.json"
+    override_path = OVERRIDES_ROOT / f"{deal_id}_overrides.json"
+
+    if not model_input_path.exists():
+        raise FileNotFoundError(
+            f"Candidates file not found and no prepared model input exists: {model_input_path}"
+        )
+
+    model_input = json.loads(model_input_path.read_text(encoding="utf-8"))
+    overrides = (
+        json.loads(override_path.read_text(encoding="utf-8"))
+        if override_path.exists()
+        else {}
+    )
+
+    for field_name, value in overrides.items():
+        model_input[field_name] = value
+
+    model_input_path.write_text(json.dumps(model_input, indent=2), encoding="utf-8")
+
+    if review_path.exists():
+        review_payload = json.loads(review_path.read_text(encoding="utf-8"))
+        for field_name, value in overrides.items():
+            field_state = review_payload.setdefault("fields", {}).setdefault(
+                field_name,
+                {
+                    "selected": {},
+                    "options": [],
+                    "warnings": [],
+                    "recommended_estimate": None,
+                },
+            )
+            field_state["selected"] = {
+                "value": value,
+                "confidence": 1.0,
+                "source_document_id": None,
+                "source_locator": "user_override",
+                "method": "user_override",
+                "notes": "Applied from saved override.",
+                "source_urls": [],
+            }
+        review_path.write_text(json.dumps(review_payload, indent=2), encoding="utf-8")

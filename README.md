@@ -91,9 +91,11 @@ python3 run_build_workbook_from_deal.py <deal_id>
 
 ### Frontend flow
 
-1. Upload documents or open an example deal
-2. Run extraction
-3. Review extracted values
+1. Start a deal by:
+   - uploading documents, or
+   - entering numbers directly
+2. If using documents, run extraction
+3. Review extracted or manually seeded values
 4. Apply reasonable estimates or manual overrides
 5. Run analysis
 6. Download the generated workbook

@@ -153,6 +153,91 @@ export async function createDealFromUploads(dealName, files, user = null) {
   return getDealDetail(dealId);
 }
 
+export async function createDealFromManualInputs(dealName, inputs, user = null) {
+  const dealId = slugifyDealName(dealName);
+
+  await saveDealMeta(dealId, {
+    deal_id: dealId,
+    display_name: dealName.trim(),
+    is_example: false,
+    visibility: "private",
+    source: "manual_entry",
+  });
+
+  await syncDealToSupabase({
+    dealId,
+    displayName: dealName.trim(),
+    userId: user?.id ?? null,
+    documents: [],
+  });
+
+  await fs.mkdir(NORMALIZED_ROOT, { recursive: true });
+  const manifestPath = path.join(NORMALIZED_ROOT, `${dealId}_manifest.json`);
+  const candidatePath = path.join(NORMALIZED_ROOT, `${dealId}_field_candidates.json`);
+  const normalizedCandidatePath = path.join(NORMALIZED_ROOT, `${dealId}_field_candidates_normalized.json`);
+
+  const candidates = Object.entries(inputs || {})
+    .filter(([, value]) => value !== null && value !== undefined && value !== "")
+    .map(([fieldName, value]) => ({
+      field_name: fieldName,
+      value,
+      confidence: 0.95,
+      source_document_id: "manual_entry",
+      source_locator: "manual_entry",
+      method: "manual_entry",
+      notes: "Provided directly by the user.",
+      source_urls: [],
+    }));
+
+  await fs.writeFile(
+    manifestPath,
+    JSON.stringify(
+      {
+        deal_id: dealId,
+        document_count: 0,
+        chunk_count: 0,
+        manifest_fingerprint: `manual:${dealId}`,
+        chunk_chars: 0,
+        chunk_overlap_chars: 0,
+        documents: [],
+        chunks: [],
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+
+  await fs.writeFile(
+    candidatePath,
+    JSON.stringify(
+      {
+        deal_id: dealId,
+        model: "manual_entry",
+        candidate_count: candidates.length,
+        candidates,
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+
+  await fs.rm(normalizedCandidatePath, { force: true });
+  await runPythonCommand(["run_resolve_fields.py", dealId]);
+  await runPythonCommand(["run_prepare_model_inputs.py", dealId]);
+  await syncLocalArtifactsToSupabase(dealId, [
+    `${dealId}_manifest.json`,
+    `${dealId}_review_payload.json`,
+    `${dealId}_model_input.json`,
+    `${dealId}_field_candidates.json`,
+    `${dealId}_field_candidates_normalized.json`,
+    `${dealId}_resolved.json`,
+  ]);
+
+  return getDealDetail(dealId, user);
+}
+
 export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5, userId = null } = {}) {
   if (isRailwayWorkerConfigured()) {
     return triggerRailwayPipeline(dealId, { phase, maxChunks, userId });
@@ -578,6 +663,35 @@ async function syncDealToSupabase({ dealId, displayName, userId, documents }) {
   }
 }
 
+async function syncLocalArtifactsToSupabase(dealId, fileNames) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase) {
+    return;
+  }
+
+  const bucket = getSupabaseStorageBucket();
+  for (const fileName of fileNames) {
+    const localPath = resolveArtifactLocalPath(fileName);
+    if (!localPath || !(await exists(localPath))) {
+      continue;
+    }
+    const body = await fs.readFile(localPath);
+    const storagePath = buildSupabaseArtifactPath(dealId, fileName);
+    const contentType = fileName.endsWith(".json") ? "application/json" : "application/octet-stream";
+    const { error } = await withSupabaseRetries(
+      () =>
+        supabase.storage.from(bucket).upload(storagePath, body, {
+          contentType,
+          upsert: true,
+        }),
+      `upload artifact ${fileName} to Supabase Storage`
+    );
+    if (error) {
+      throw new Error(`Failed to upload artifact ${fileName}: ${error.message}`);
+    }
+  }
+}
+
 async function upsertSupabaseDeal(supabase, payload) {
   const { error } = await supabase.from("deals").upsert(payload, {
     onConflict: "deal_id",
@@ -797,6 +911,23 @@ function buildSupabaseStoragePath({ userId, dealId, fileName }) {
 
 function buildSupabaseArtifactPath(dealId, fileName) {
   return `artifacts/${dealId}/${fileName}`;
+}
+
+function resolveArtifactLocalPath(fileName) {
+  if (fileName.endsWith("_review_payload.json") || fileName.endsWith("_model_input.json") || fileName.endsWith("_resolved.json")) {
+    return path.join(RESOLVED_ROOT, fileName);
+  }
+  if (
+    fileName.endsWith("_manifest.json") ||
+    fileName.endsWith("_field_candidates.json") ||
+    fileName.endsWith("_field_candidates_normalized.json")
+  ) {
+    return path.join(NORMALIZED_ROOT, fileName);
+  }
+  if (fileName.endsWith(".xlsx") || fileName.endsWith("_summary.json") || fileName.endsWith("_diagnostics.json")) {
+    return path.join(OUTPUTS_ROOT, fileName);
+  }
+  return null;
 }
 
 function applyOverridesToReview(review, overrides) {
