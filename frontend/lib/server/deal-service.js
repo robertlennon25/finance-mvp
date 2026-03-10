@@ -148,6 +148,7 @@ export async function createDealFromUploads(dealName, files, user = null) {
     displayName: dealName.trim(),
     userId: user?.id ?? null,
     documents: uploadedDocuments,
+    source: "upload",
   });
 
   return getDealDetail(dealId);
@@ -169,6 +170,7 @@ export async function createDealFromManualInputs(dealName, inputs, user = null) 
     displayName: dealName.trim(),
     userId: user?.id ?? null,
     documents: [],
+    source: "manual_entry",
   });
 
   await fs.mkdir(NORMALIZED_ROOT, { recursive: true });
@@ -623,7 +625,7 @@ async function appendDealRun(dealId, run) {
   await fs.writeFile(getRunHistoryPath(dealId), JSON.stringify(existing, null, 2), "utf-8");
 }
 
-async function syncDealToSupabase({ dealId, displayName, userId, documents }) {
+async function syncDealToSupabase({ dealId, displayName, userId, documents, source = "upload" }) {
   const supabase = getSupabaseServiceRoleClient();
   if (!supabase) {
     return;
@@ -638,7 +640,7 @@ async function syncDealToSupabase({ dealId, displayName, userId, documents }) {
         display_name: displayName,
         visibility: "private",
         is_example: false,
-        source: "upload",
+        source,
       }),
     `save deal metadata for ${dealId}`
   );
@@ -650,18 +652,17 @@ async function syncDealToSupabase({ dealId, displayName, userId, documents }) {
       fileName: document.fileName,
     });
 
-    const { error: uploadError } = await withSupabaseRetries(
+    await withSupabaseRetries(
       () =>
-        supabase.storage.from(bucket).upload(storagePath, document.buffer, {
-          contentType: document.mimeType,
-          upsert: true,
-        }),
+        uploadToSupabaseOrThrow(
+          supabase,
+          bucket,
+          storagePath,
+          document.buffer,
+          document.mimeType
+        ),
       `upload ${document.fileName} to Supabase Storage`
     );
-
-    if (uploadError) {
-      throw new Error(`Failed to upload ${document.fileName} to Supabase Storage: ${uploadError.message}`);
-    }
 
     const { error: documentError } = await withSupabaseRetries(
       () =>
@@ -705,17 +706,17 @@ async function syncLocalArtifactsToSupabase(dealId, fileNames) {
     const body = await fs.readFile(localPath);
     const storagePath = buildSupabaseArtifactPath(dealId, fileName);
     const contentType = fileName.endsWith(".json") ? "application/json" : "application/octet-stream";
-    const { error } = await withSupabaseRetries(
+    await withSupabaseRetries(
       () =>
-        supabase.storage.from(bucket).upload(storagePath, body, {
-          contentType,
-          upsert: true,
-        }),
+        uploadToSupabaseOrThrow(
+          supabase,
+          bucket,
+          storagePath,
+          body,
+          contentType
+        ),
       `upload artifact ${fileName} to Supabase Storage`
     );
-    if (error) {
-      throw new Error(`Failed to upload artifact ${fileName}: ${error.message}`);
-    }
   }
 }
 
@@ -815,6 +816,8 @@ function isRetryableSupabaseError(error) {
   return (
     message.includes("timed out") ||
     message.includes("timeout") ||
+    message.includes("bad gateway") ||
+    message.includes("502") ||
     message.includes("connection") ||
     message.includes("network") ||
     message.includes("fetch failed") ||
@@ -822,6 +825,19 @@ function isRetryableSupabaseError(error) {
     message.includes("econnreset") ||
     message.includes("service unavailable")
   );
+}
+
+async function uploadToSupabaseOrThrow(supabase, bucket, storagePath, body, contentType) {
+  const result = await supabase.storage.from(bucket).upload(storagePath, body, {
+    contentType,
+    upsert: true,
+  });
+
+  if (result?.error) {
+    throw new Error(result.error.message || `Failed upload to ${storagePath}`);
+  }
+
+  return result;
 }
 
 function sleep(ms) {
