@@ -5,11 +5,17 @@ import { AppShell } from "@/components/app-shell";
 import { DocumentList } from "@/components/document-list";
 import { ResultsOverview } from "@/components/results-overview";
 import { RunHistoryPanel } from "@/components/run-history-panel";
+import { isCuratedExampleDeal } from "@/lib/example-deals";
 import { getDealDetail } from "@/lib/server/deal-service";
 
 export default async function ExampleDealPage({ params }) {
   const detail = await getDealDetail(params.dealId);
-  if (!detail || !(detail.meta?.is_example || detail.meta?.visibility === "public_example")) {
+  const isExample =
+    detail &&
+    (isCuratedExampleDeal(params.dealId) ||
+      detail.meta?.is_example ||
+      detail.meta?.visibility === "public_example");
+  if (!detail || !isExample) {
     notFound();
   }
 

@@ -366,6 +366,13 @@ export async function getDealDocumentResponse(dealId, requestedFileName) {
 }
 
 export async function getDealWorkbookResponse(dealId) {
+  if (isRailwayWorkerConfigured()) {
+    const remoteResponse = await getSupabaseWorkbookResponse(dealId);
+    if (remoteResponse) {
+      return remoteResponse;
+    }
+  }
+
   const workbookPath = await getWorkbookPath(dealId);
   if (workbookPath) {
     const body = await fs.readFile(workbookPath);
@@ -416,6 +423,13 @@ export async function getDealMeta(dealId) {
 }
 
 export async function getWorkbookSummary(dealId) {
+  if (isRailwayWorkerConfigured()) {
+    const remoteSummary = await getSupabaseArtifactJson(dealId, `${dealId}_summary.json`);
+    if (remoteSummary) {
+      return remoteSummary;
+    }
+  }
+
   const summaryPath = path.join(OUTPUTS_ROOT, `${dealId}_summary.json`);
   if (!(await exists(summaryPath))) {
     return getSupabaseArtifactJson(dealId, `${dealId}_summary.json`);
@@ -818,6 +832,12 @@ function applyOverridesToReview(review, overrides) {
 }
 
 async function getWorkbookPath(dealId) {
+  if (isRailwayWorkerConfigured()) {
+    const remoteExists = await hasSupabaseArtifact(dealId, `${dealId}_valuation_model.xlsx`);
+    if (remoteExists) {
+      return null;
+    }
+  }
   const candidate = path.join(OUTPUTS_ROOT, `${dealId}_valuation_model.xlsx`);
   return (await exists(candidate)) ? candidate : null;
 }
