@@ -7,6 +7,11 @@ from typing import Any, Dict
 from document_pipeline.config import NORMALIZED_EXTRACTIONS_ROOT, OVERRIDES_ROOT, RESOLVED_EXTRACTIONS_ROOT
 from document_pipeline.services.web_fallback import get_web_fallback_candidates
 
+CANONICAL_UNIT_NOTE = (
+    "Canonical units: currency fields are stored in full dollars, share counts are stored in full shares, "
+    "percentages are stored as decimals, and valuation multiples are stored as raw x values."
+)
+
 
 def resolve_deal_fields(deal_id: str) -> Dict[str, Any]:
     candidates_path = NORMALIZED_EXTRACTIONS_ROOT / f"{deal_id}_field_candidates.json"
@@ -173,6 +178,7 @@ def _normalize_candidate(
         normalized_value = _scale_numeric_value(normalized_value, unit_multiplier)
         if unit_multiplier != 1:
             normalization_notes.append(f"Scaled numeric value by {unit_multiplier:g} based on units in notes.")
+        normalization_notes.append(CANONICAL_UNIT_NOTE)
 
     selection_score = _selection_score(
         field_name=field_name,
@@ -191,20 +197,20 @@ def _normalize_candidate(
 
 
 def _infer_unit_multiplier(field_name: str, notes: str, context_text: str) -> float:
-    text = f"{notes} {context_text}".lower()
+    text = _normalize_unit_text(f"{notes} {context_text}")
     if field_name == "shares_outstanding":
-        if "in thousands" in text or "(000" in text or "000's" in text:
+        if _contains_thousands_marker(text):
             return 1_000.0
-        if "in millions" in text:
+        if _contains_millions_marker(text):
             return 1_000_000.0
-        if "in billions" in text:
+        if _contains_billions_marker(text):
             return 1_000_000_000.0
         return 1.0
-    if "in billions" in text:
+    if _contains_billions_marker(text):
         return 1_000_000_000.0
-    if "in millions" in text:
+    if _contains_millions_marker(text):
         return 1_000_000.0
-    if "in thousands" in text or "(000" in text or "000's" in text:
+    if _contains_thousands_marker(text):
         return 1_000.0
     return 1.0
 
@@ -215,6 +221,29 @@ def _scale_numeric_value(value: Any, multiplier: float) -> Any:
     if isinstance(value, (int, float)):
         return int(value * multiplier) if float(value).is_integer() else value * multiplier
     return value
+
+
+def _normalize_unit_text(text: str) -> str:
+    normalized = text.lower()
+    normalized = normalized.replace("millions, except per share data", "in millions")
+    normalized = normalized.replace("millions except per share data", "in millions")
+    normalized = normalized.replace("thousands, except per share data", "in thousands")
+    normalized = normalized.replace("thousands except per share data", "in thousands")
+    normalized = normalized.replace("billions, except per share data", "in billions")
+    normalized = normalized.replace("billions except per share data", "in billions")
+    return normalized
+
+
+def _contains_thousands_marker(text: str) -> bool:
+    return any(marker in text for marker in ("in thousands", "(000", "000's", "000s"))
+
+
+def _contains_millions_marker(text: str) -> bool:
+    return any(marker in text for marker in ("in millions", "(millions)", "$ millions", "$ in millions"))
+
+
+def _contains_billions_marker(text: str) -> bool:
+    return any(marker in text for marker in ("in billions", "(billions)", "$ billions", "$ in billions"))
 
 
 def _selection_score(

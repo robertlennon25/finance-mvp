@@ -10,6 +10,10 @@ export function ReviewWorkspace({ workspace, user }) {
       <div className="panel">
         <div className="panel-inner">
           <h2 className="section-title">Field Review</h2>
+          <p className="meta review-note">
+            Canonical units: currency values are shown in full dollars, share counts in full shares,
+            percentages as decimals, and multiples as raw x values.
+          </p>
           {!user ? (
             <p className="meta review-note">
               Sign in with Google to persist overrides in Supabase. You can still inspect all

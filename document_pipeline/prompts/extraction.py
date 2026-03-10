@@ -35,6 +35,7 @@ Rules:
   - cash may appear as cash and cash equivalents
   - shares outstanding may appear as common shares outstanding
 - If a value can be computed directly from figures stated in the same chunk, include it and explain the derivation in `notes`.
+- If the chunk states units such as `in millions` or `in thousands`, mention that in `notes`.
 - Do not invent values that are not grounded in the chunk.
 - Use decimals for percentages when possible.
 - Use plain numbers for numeric values.

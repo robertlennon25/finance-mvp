@@ -18,6 +18,7 @@ def build_historicals_input_sheet(ctx) -> None:
 
     ws["A3"] = "Historical Financials"
     style_section(ws["A3"])
+    ws["A2"] = "All currency inputs are stored in full dollars and share counts are stored in full shares."
 
     headers = ["Year", "Revenue", "EBITDA", "EBITDA Margin", "Capex", "D&A", "NWC"]
     for idx, header in enumerate(headers, start=1):
