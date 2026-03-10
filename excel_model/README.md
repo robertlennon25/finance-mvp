@@ -12,7 +12,7 @@ Modular workbook builder for the LBO model.
 
 Current workbook is organized around transaction flow:
 
-- cover / summary
+- cover / summary sheet
 - historicals / input
 - assumptions
 - debt setup
