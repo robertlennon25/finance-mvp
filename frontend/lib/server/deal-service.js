@@ -175,6 +175,7 @@ export async function createDealFromManualInputs(dealName, inputs, user = null) 
   const manifestPath = path.join(NORMALIZED_ROOT, `${dealId}_manifest.json`);
   const candidatePath = path.join(NORMALIZED_ROOT, `${dealId}_field_candidates.json`);
   const normalizedCandidatePath = path.join(NORMALIZED_ROOT, `${dealId}_field_candidates_normalized.json`);
+  const extractionMetadataPath = path.join(NORMALIZED_ROOT, `${dealId}_extraction_metadata.json`);
 
   const candidates = Object.entries(inputs || {})
     .filter(([, value]) => value !== null && value !== undefined && value !== "")
@@ -223,11 +224,37 @@ export async function createDealFromManualInputs(dealName, inputs, user = null) 
     "utf-8"
   );
 
+  await fs.writeFile(
+    extractionMetadataPath,
+    JSON.stringify(
+      {
+        deal_id: dealId,
+        cache_key: `manual:${dealId}`,
+        manifest_fingerprint: `manual:${dealId}`,
+        selected_chunk_ids: [],
+        selected_chunk_count: 0,
+        model: "manual_entry",
+        prompt_version: "manual_entry",
+        schema_version: "manual_entry",
+        cached: false,
+        cache_hit_count: 0,
+        generated_at: new Date().toISOString(),
+        normalized_path: candidatePath,
+        raw_output_path: null,
+        source: "manual_entry",
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+
   await fs.rm(normalizedCandidatePath, { force: true });
   await runPythonCommand(["run_resolve_fields.py", dealId]);
   await runPythonCommand(["run_prepare_model_inputs.py", dealId]);
   await syncLocalArtifactsToSupabase(dealId, [
     `${dealId}_manifest.json`,
+    `${dealId}_extraction_metadata.json`,
     `${dealId}_review_payload.json`,
     `${dealId}_model_input.json`,
     `${dealId}_field_candidates.json`,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import json
 
-from document_pipeline.config import NORMALIZED_EXTRACTIONS_ROOT, OVERRIDES_ROOT, RESOLVED_EXTRACTIONS_ROOT
+from document_pipeline.config import INBOX_ROOT, NORMALIZED_EXTRACTIONS_ROOT, OVERRIDES_ROOT, RESOLVED_EXTRACTIONS_ROOT
 from worker_api.config import (
     SUPABASE_SERVICE_ROLE_KEY,
     SUPABASE_STORAGE_BUCKET,
