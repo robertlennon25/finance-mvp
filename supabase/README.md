@@ -28,3 +28,7 @@ This folder holds the SQL migrations and setup notes for the app runtime.
 - worker and frontend currently share the same storage bucket
 - remote worker uploads artifacts under `artifacts/<deal_id>/...`
 - frontend may read documents and artifacts from Supabase when local files are missing
+- workbook-related remote artifacts now include:
+  - summary JSON
+  - diagnostics JSON
+- the planned memo feature should also store memo artifacts in the same bucket hierarchy

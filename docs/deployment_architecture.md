@@ -69,6 +69,7 @@ Remote worker uploads:
 - `artifacts/<deal_id>/<deal_id>_manifest.json`
 - `artifacts/<deal_id>/<deal_id>_valuation_model.xlsx`
 - `artifacts/<deal_id>/<deal_id>_summary.json`
+- `artifacts/<deal_id>/<deal_id>_diagnostics.json`
 
 Frontend should treat those as the remote fallback source when local files are absent.
 
@@ -88,3 +89,15 @@ The clean production direction is:
 2. Vercel stores metadata only
 3. Railway becomes the only heavy processing path
 4. frontend becomes storage-backed, not filesystem-backed
+
+## Planned extension after deploy
+
+After the core deploy is stable, add a memo-generation stage:
+
+1. frontend sends the resolved deal context plus `acquirer_name`
+2. worker produces workbook screenshots and a memo prompt context
+3. OpenAI generates a starter acquisition memo
+4. worker uploads memo artifacts to storage
+5. frontend previews and downloads the memo
+
+This should remain a separate artifact-producing stage, not part of the core Excel build path.

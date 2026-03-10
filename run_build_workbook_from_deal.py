@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from document_pipeline.services.diagnostics import build_model_diagnostics
 from excel_builder import write_workbook
 from valuation import (
     build_assumptions,
@@ -76,9 +77,20 @@ def main() -> None:
         valuation_summary,
     )
     summary_path = base_dir / "outputs" / f"{args.deal_id}_summary.json"
+    diagnostics_path = base_dir / "outputs" / f"{args.deal_id}_diagnostics.json"
+    checks = {
+        "revolver_within_limit": lbo_info.get("revolver_limit_check_passed"),
+    }
+    diagnostics = build_model_diagnostics(
+        extracted=extracted,
+        dcf_info=dcf_info,
+        lbo_info=lbo_info,
+        checks=checks,
+    )
     summary_payload = {
         "deal_id": args.deal_id,
         "company_name": extracted.get("company_name", ""),
+        "entry_year": extracted.get("entry_year"),
         "share_price_multiple": dcf_info.get("share_price_multiple"),
         "share_price_pgr": dcf_info.get("share_price_pgr"),
         "equity_value_multiple": dcf_info.get("equity_value_multiple"),
@@ -103,11 +115,16 @@ def main() -> None:
             else None
         ),
         "warnings": _build_model_warnings(extracted, dcf_info),
+        "diagnostics": diagnostics.get("diagnostics", []),
+        "diagnostic_issue_count": diagnostics.get("issue_count", 0),
+        "diagnostic_note": diagnostics.get("user_note"),
         "editable_note": "You can always update assumptions and outputs later directly in the Excel workbook.",
     }
     summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+    diagnostics_path.write_text(json.dumps(diagnostics, indent=2), encoding="utf-8")
     print(f"Workbook written to: {result}")
     print(f"Summary written to: {summary_path}")
+    print(f"Diagnostics written to: {diagnostics_path}")
 
 
 if __name__ == "__main__":

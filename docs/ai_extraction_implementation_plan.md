@@ -16,11 +16,12 @@ This doc describes the document pipeline design and the assumptions that still m
 
 1. ingest documents
 2. parse raw text/page text
-3. chunk documents
-4. extract field candidates
-5. normalize and score candidates
-6. resolve selected values
-7. prepare:
+3. chunk documents with overlap
+4. extract field candidates chunk by chunk
+5. run a document-level synthesis pass over finance-heavy snippets
+6. normalize and score candidates
+7. resolve selected values
+8. prepare:
    - review payload
    - workbook-ready model input
 
@@ -38,6 +39,8 @@ Remote worker artifacts:
 - `artifacts/<deal_id>/<deal_id>_review_payload.json`
 - `artifacts/<deal_id>/<deal_id>_model_input.json`
 - `artifacts/<deal_id>/<deal_id>_manifest.json`
+- `artifacts/<deal_id>/<deal_id>_summary.json`
+- `artifacts/<deal_id>/<deal_id>_diagnostics.json`
 
 ## Priority order for final values
 
@@ -67,6 +70,20 @@ Inference / estimate targets:
 - margin assumptions
 - growth assumptions
 - zero-like fields that are implausible in an LBO model
+- missing revenue or EBITDA when they can be derived from nearby financial evidence
+
+## Review-layer truth
+
+The review payload is the stable frontend contract.
+
+It should preserve:
+
+- selected value
+- alternatives
+- warnings
+- recommended estimate
+- source URLs
+- entry year and other timing-sensitive fields
 
 ## Important current constraint
 

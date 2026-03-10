@@ -29,8 +29,8 @@ export function DealGallery({ deals }) {
             </p>
           ) : null}
           <div className="hero-actions">
-            <Link className="override-button primary" href={`/deals/${deal.dealId}/results`}>
-              Open deal
+            <Link className="override-button primary" href={`/examples/${deal.dealId}`}>
+              Open example
             </Link>
           </div>
         </article>

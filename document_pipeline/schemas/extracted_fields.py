@@ -6,6 +6,7 @@ EXTRACTION_SCHEMA_VERSION = "2026-03-09-v1"
 
 EXTRACTED_FIELD_SCHEMA: Dict[str, Any] = {
     "company_name": "",
+    "entry_year": None,
     "revenue": None,
     "ebitda": None,
     "cash": None,

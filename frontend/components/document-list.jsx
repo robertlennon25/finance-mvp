@@ -16,7 +16,13 @@ export function DocumentList({ dealId, documents }) {
             {documents.map((document) => (
               <article className="document-card" key={`${document.bucket}-${document.fileName}`}>
                 <strong>{document.fileName}</strong>
-                <p className="meta">{document.bucket === "processed" ? "Processed copy" : "Inbox file"}</p>
+                <p className="meta">
+                  {document.bucket === "processed"
+                    ? "Processed copy"
+                    : document.bucket === "supabase"
+                      ? "Supabase stored document"
+                      : "Inbox file"}
+                </p>
                 <div className="hero-actions">
                   <Link
                     className="override-button"

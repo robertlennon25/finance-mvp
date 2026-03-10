@@ -8,6 +8,7 @@ from document_pipeline.config import NORMALIZED_EXTRACTIONS_ROOT, RESOLVED_EXTRA
 
 BASE_DEFAULTS: Dict[str, Any] = {
     "company_name": "",
+    "entry_year": 2024,
     "revenue": 0,
     "ebitda": 0,
     "cash": 0,
@@ -128,11 +129,14 @@ def _build_field_warnings(
     warnings: list[str] = []
     value = selected.get("value")
     if field_name in NONZERO_WARNING_FIELDS and _is_zeroish(value):
-      warnings.append("This field is zero, which is usually unrealistic in an LBO model.")
+        warnings.append("This field is zero, which is usually unrealistic in an LBO model.")
+
+    if field_name == "entry_year" and selected.get("method") == "default":
+        warnings.append("Entry year is using the default value. Override it if the filing period is different.")
 
     estimate = _pick_estimate_candidate(candidates)
     if estimate:
-      warnings.append(str(estimate.get("notes", "Reasonable estimate available.")))
+        warnings.append(str(estimate.get("notes", "Reasonable estimate available.")))
 
     return warnings
 
@@ -144,11 +148,14 @@ def _build_default_warnings(
 ) -> list[str]:
     warnings: list[str] = []
     if field_name in NONZERO_WARNING_FIELDS and _is_zeroish(base_value):
-      warnings.append("No extracted value found and the current default is zero.")
+        warnings.append("No extracted value found and the current default is zero.")
+
+    if field_name == "entry_year":
+        warnings.append("No extracted entry year found. The current default is 2024.")
 
     estimate = _pick_estimate_candidate(candidates)
     if estimate:
-      warnings.append(str(estimate.get("notes", "Reasonable estimate available.")))
+        warnings.append(str(estimate.get("notes", "Reasonable estimate available.")))
 
     return warnings
 

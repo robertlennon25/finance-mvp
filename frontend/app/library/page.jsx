@@ -9,7 +9,7 @@ export default async function LibraryPage() {
     <AppShell
       eyebrow="Existing Deals"
       title="Pick an existing LBO."
-      description="Open a stored case, inspect its source files, and launch the workflow when you are ready."
+      description="Open a stored example case, inspect the output workbook, and review the supporting source documents separately from the live upload pipeline."
     >
       <DealGallery deals={deals} />
     </AppShell>

@@ -34,3 +34,22 @@ Uploads still write a local dev copy first in the frontend server before syncing
 3. test an existing deal
 4. test a fresh upload
 5. only then promote to Vercel preview/production
+
+## Current artifact expectations
+
+For a successful remote run, the frontend may need to read these from Supabase:
+
+- `artifacts/<deal_id>/<deal_id>_review_payload.json`
+- `artifacts/<deal_id>/<deal_id>_model_input.json`
+- `artifacts/<deal_id>/<deal_id>_manifest.json`
+- `artifacts/<deal_id>/<deal_id>_valuation_model.xlsx`
+- `artifacts/<deal_id>/<deal_id>_summary.json`
+- `artifacts/<deal_id>/<deal_id>_diagnostics.json`
+
+## Planned extension after deploy
+
+After the core Vercel deploy is stable, add a memo-generation path that:
+
+1. accepts `Who is the acquirer?`
+2. generates a starter acquisition memo from workbook artifacts
+3. shows a preview and download option in the frontend

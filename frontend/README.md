@@ -10,6 +10,7 @@ Next.js review/orchestration app for the LBO workflow.
 - extraction and analysis loading screens
 - override review UI
 - workbook download and results summary
+- warnings and diagnostics display
 - Supabase-authenticated user actions
 
 ## Runtime modes
@@ -38,6 +39,7 @@ If `RAILWAY_WORKER_URL` is set:
 - [`lib/server/deal-service.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/server/deal-service.js)
 - [`lib/example-deals.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/example-deals.js)
 - [`components/pipeline-runner.jsx`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/components/pipeline-runner.jsx)
+- [`components/results-overview.jsx`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/components/results-overview.jsx)
 
 ## Env vars
 
@@ -85,6 +87,33 @@ Edit:
 
 and keep only the deal ids you want publicly visible.
 
+## Current example-deal workflow
+
+Existing LBOs are intentionally separated from the live upload pipeline.
+
+Current behavior:
+
+- library cards open:
+  - `/examples/<deal_id>`
+- that page is read-only and focused on:
+  - summary outputs
+  - workbook download
+  - supporting source documents
+- it does not immediately push the user into extraction or analysis
+
+### How to publish a new example deal right now
+
+1. Run the normal pipeline on a deal until you have:
+   - review payload
+   - workbook
+   - summary/diagnostics artifacts
+2. Make sure the documents and artifacts are present in Supabase Storage.
+3. Mark the deal as public example:
+   - easiest now: add the deal id to [`lib/example-deals.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/example-deals.js)
+   - optional metadata path: set `is_example: true` or `visibility: "public_example"`
+4. Restart/redeploy the frontend.
+5. The deal should appear under `Existing LBOs`.
+
 ### Metadata-driven alternative
 
 You can also mark a deal as public by setting local or Supabase metadata to either:
@@ -105,3 +134,20 @@ For an example case you want users to try:
 4. add the deal id to [`lib/example-deals.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/example-deals.js)
 
 That is the simplest current way to curate the library before a fuller admin UI exists.
+
+## Planned next feature
+
+The next product feature to build after deploy prep is an AI-generated acquisition memo.
+
+Frontend implications:
+
+- add a new input field:
+  - `Who is the acquirer?`
+- add a memo generation action after workbook build
+- show memo status and starter-template warning
+- allow memo download
+- later, show workbook screenshots and memo preview in-app
+
+See:
+
+- [`docs/memo_generation_plan.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/memo_generation_plan.md)

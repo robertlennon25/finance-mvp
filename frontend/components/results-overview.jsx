@@ -44,6 +44,10 @@ export function ResultsOverview({ detail }) {
               <strong>{detail.companyName || "Unknown company"}</strong>
             </article>
             <article className="stat-tile">
+              <span>Entry Year</span>
+              <strong>{summary?.entry_year ?? "—"}</strong>
+            </article>
+            <article className="stat-tile">
               <span>Documents</span>
               <strong>{detail.documentCount}</strong>
             </article>
@@ -115,6 +119,42 @@ export function ResultsOverview({ detail }) {
                 <p className="meta">
                   {summary.editable_note ||
                     "You can still update these values later directly in the Excel workbook."}
+                </p>
+              </div>
+            ) : null}
+            {summary.diagnostics?.length ? (
+              <div className="warning-stack">
+                <h3 className="section-title">Diagnostics</h3>
+                {summary.diagnostics.map((item, index) => (
+                  <article className="candidate-card" key={`diagnostic-${index}`}>
+                    <div className="chip-row">
+                      <span className={`chip ${item.severity === "high" ? "warn" : ""}`}>
+                        {item.severity}
+                      </span>
+                    </div>
+                    <strong>{item.title}</strong>
+                    <p>{item.explanation}</p>
+                    {item.likely_causes?.length ? (
+                      <div className="meta">
+                        <strong>Likely causes:</strong>
+                        {item.likely_causes.map((cause, causeIndex) => (
+                          <p key={`diagnostic-cause-${index}-${causeIndex}`}>{cause}</p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {item.suggested_actions?.length ? (
+                      <div className="meta">
+                        <strong>What to try:</strong>
+                        {item.suggested_actions.map((action, actionIndex) => (
+                          <p key={`diagnostic-action-${index}-${actionIndex}`}>{action}</p>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+                <p className="meta">
+                  {summary.diagnostic_note ||
+                    "You can override these values before analysis or adjust them later in the Excel workbook."}
                 </p>
               </div>
             ) : null}

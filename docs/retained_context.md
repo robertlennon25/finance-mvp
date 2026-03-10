@@ -16,6 +16,8 @@ Read this first after compaction if you need the minimum safe context.
 - therefore remote artifacts must be uploaded to Supabase and read back from there
 - overrides are persisted state, not just transient frontend values
 - user overrides must be available to the worker before analysis/build
+- diagnostics are written during workbook build and shown on the final results page
+- the next planned feature is memo generation from structured artifacts, not from raw documents alone
 
 ## Most important files
 
@@ -24,7 +26,9 @@ Read this first after compaction if you need the minimum safe context.
 - [`worker_api/pipeline.py`](/Users/robertlennon/Desktop/finance_ai_mvp/worker_api/pipeline.py)
 - [`worker_api/supabase_sync.py`](/Users/robertlennon/Desktop/finance_ai_mvp/worker_api/supabase_sync.py)
 - [`document_pipeline/services/resolve_fields.py`](/Users/robertlennon/Desktop/finance_ai_mvp/document_pipeline/services/resolve_fields.py)
+- [`document_pipeline/services/diagnostics.py`](/Users/robertlennon/Desktop/finance_ai_mvp/document_pipeline/services/diagnostics.py)
 - [`excel_model/workbook.py`](/Users/robertlennon/Desktop/finance_ai_mvp/excel_model/workbook.py)
+- [`docs/memo_generation_plan.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/memo_generation_plan.md)
 
 ## If a bug appears in review or analysis flow
 

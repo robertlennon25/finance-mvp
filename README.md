@@ -7,6 +7,7 @@ AI-assisted LBO modeling workflow with:
 - a Next.js review frontend
 - Supabase auth/storage/metadata
 - a Railway FastAPI worker for remote processing
+- a documented next-step path for AI-generated acquisition memos
 
 ## Current architecture
 
@@ -23,6 +24,8 @@ AI-assisted LBO modeling workflow with:
 - If `RAILWAY_WORKER_URL` is blank, the frontend falls back to local Python commands
 - Remote worker artifacts are uploaded to Supabase Storage under `artifacts/<deal_id>/...`
 - Frontend can read review payloads and workbooks from Supabase when local files are absent
+- Review payloads can now include extracted, estimated, and public-company web-estimated values with source links
+- Workbook summary artifacts can now include deterministic diagnostics explaining suspicious outputs
 
 ## Repo map
 
@@ -94,6 +97,32 @@ python3 run_build_workbook_from_deal.py <deal_id>
 4. Apply reasonable estimates or manual overrides
 5. Run analysis
 6. Download the generated workbook
+7. Review warnings and diagnostics on the results page
+
+### Example-deal flow
+
+1. Open `Existing LBOs`
+2. Select a curated example
+3. View the summary page
+4. Download the workbook
+5. Inspect the source documents that fed the case
+
+This path is intentionally separated from the live upload-and-run workflow.
+
+## Current pipeline interaction model
+
+1. Documents are uploaded or selected from curated examples.
+2. Ingestion extracts page text and builds overlapping chunks.
+3. Chunk extraction sends chunks to `gpt-4.1-mini`.
+4. A document-level synthesis pass tries to infer missing finance fields from the most relevant snippets.
+5. Resolver normalizes units, scores candidates, applies web fallback for public-company cases, and generates reasonable estimates.
+6. Review payload is prepared for the frontend with selected values, options, warnings, and source URLs.
+7. User can override values or apply reasonable estimates.
+8. Workbook build writes:
+   - XLSX
+   - summary JSON
+   - diagnostics JSON
+9. Frontend shows outputs, warnings, and suggested fixes.
 
 ## Deployment shape
 
@@ -107,6 +136,7 @@ See:
 - [`docs/deployment_architecture.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/deployment_architecture.md)
 - [`docs/supabase_setup.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/supabase_setup.md)
 - [`docs/railway_deploy.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/railway_deploy.md)
+- [`docs/memo_generation_plan.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/memo_generation_plan.md)
 
 ## Known constraints
 
@@ -114,6 +144,8 @@ See:
 - Local review/override flows should not depend on local candidate files after a Railway run
 - Uploads still write a local dev copy first; production should move to storage-first behavior
 - `frontend/node_modules_broken_*` and similar reinstall artifacts should never be committed
+- AI extraction is stronger than before, but filings with unusual labeling can still require user overrides
+- The memo-generation feature is not implemented yet; only the plan/spec exists today
 
 ## Safe restart points after compaction
 

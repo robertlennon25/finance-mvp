@@ -6,11 +6,12 @@ Python pipeline for turning uploaded deal documents into structured model inputs
 
 1. ingest documents
 2. extract raw text/page text
-3. chunk documents
+3. chunk documents with overlap
 4. call `gpt-4.1-mini`
-5. normalize candidate values
-6. resolve fields
-7. prepare review payload and model input
+5. run document-level synthesis over finance-heavy snippets
+6. normalize candidate values
+7. resolve fields
+8. prepare review payload and model input
 
 ## Key scripts
 
@@ -37,10 +38,13 @@ Python pipeline for turning uploaded deal documents into structured model inputs
 ## Current resolver behavior
 
 - direct extracted candidates are normalized and scored
+- `inferred_from_chunk` and `inferred_from_document` candidates may be produced when the model can derive a missing field from nearby evidence
 - `estimated` candidates are generated for missing or suspiciously zero fields
 - narrow `web_estimated` candidates can be generated for public-company-like cases only
 - user overrides win over extracted values
 - review payload includes selected value, alternatives, warnings, and recommended estimates
+- `entry_year` is now a reviewable field
+- deterministic diagnostics are generated later during workbook build, not in the resolver itself
 
 ## Important constraint
 
@@ -57,3 +61,9 @@ That means:
 - review payload schema
 - override precedence order
 - public-company-only web fallback rules and source URL handling
+- the distinction between:
+  - `extracted`
+  - `inferred_from_chunk`
+  - `inferred_from_document`
+  - `estimated`
+  - `web_estimated`

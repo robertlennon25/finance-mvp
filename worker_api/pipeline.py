@@ -83,6 +83,7 @@ def upload_workbook_artifacts(deal_id: str) -> None:
     outputs_root = Path("outputs")
     workbook_path = outputs_root / f"{deal_id}_valuation_model.xlsx"
     summary_path = outputs_root / f"{deal_id}_summary.json"
+    diagnostics_path = outputs_root / f"{deal_id}_diagnostics.json"
 
     upload_deal_artifact(
         workbook_path,
@@ -90,6 +91,7 @@ def upload_workbook_artifacts(deal_id: str) -> None:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     upload_deal_artifact(summary_path, _artifact_storage_path(deal_id, summary_path.name), "application/json")
+    upload_deal_artifact(diagnostics_path, _artifact_storage_path(deal_id, diagnostics_path.name), "application/json")
 
 
 def _artifact_storage_path(deal_id: str, file_name: str) -> str:
