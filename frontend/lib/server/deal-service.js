@@ -273,6 +273,11 @@ export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5
   }
 
   if (phase === "analysis") {
+    if (userId) {
+      const overrides = await getDealOverrides(dealId, { id: userId });
+      await fs.mkdir(OVERRIDES_ROOT, { recursive: true });
+      await fs.writeFile(getOverridePath(dealId), JSON.stringify(overrides, null, 2), "utf-8");
+    }
     await runPythonCommand(["run_resolve_fields.py", dealId]);
     await runPythonCommand(["run_prepare_model_inputs.py", dealId]);
     await runPythonCommand(["run_build_workbook_from_deal.py", dealId]);

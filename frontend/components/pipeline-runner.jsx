@@ -48,7 +48,7 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
           setProgressPct(100);
           setStatus("done");
           setStatusMessage(payload.message || "");
-          window.setTimeout(() => router.push(targetHref), 1100);
+          window.setTimeout(() => { router.refresh(); router.push(targetHref); }, 1100);
         }
       } catch (err) {
         if (!cancelled) {
@@ -88,7 +88,7 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
           setActiveStep(steps.length - 1);
           setProgressPct(100);
           setStatus("done");
-          window.setTimeout(() => router.push(targetHref), 1100);
+          window.setTimeout(() => { router.refresh(); router.push(targetHref); }, 1100);
           return;
         }
 

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { getDealWorkbookResponse } from "@/lib/server/deal-service";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request, { params }) {
   const response = await getDealWorkbookResponse(params.dealId);
   if (!response) {
@@ -9,6 +11,9 @@ export async function GET(request, { params }) {
   }
 
   return new NextResponse(response.body, {
-    headers: response.headers
+    headers: {
+      ...response.headers,
+      "Cache-Control": "no-store",
+    }
   });
 }
