@@ -278,8 +278,21 @@ export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5
       const overrides = await getDealOverrides(dealId, { id: userId });
       await fs.mkdir(OVERRIDES_ROOT, { recursive: true });
       await fs.writeFile(getOverridePath(dealId), JSON.stringify(overrides, null, 2), "utf-8");
+      console.log("[runDealPipeline] synced user overrides", {
+        dealId,
+        userId,
+        overrideRevenue: overrides.revenue ?? null,
+      });
     }
     await refreshMaterializedDealArtifacts(dealId, user);
+    const modelInputPath = path.join(RESOLVED_ROOT, `${dealId}_model_input.json`);
+    const modelInput = JSON.parse(await fs.readFile(modelInputPath, "utf-8"));
+    console.log("[runDealPipeline] before workbook build", {
+      dealId,
+      phase,
+      modelInputRevenue: modelInput.revenue ?? null,
+      modelInputEntryMultiple: modelInput.entry_multiple ?? null,
+    });
     await runPythonCommand(["run_build_workbook_from_deal.py", dealId]);
     const result = { phase, cached: false, message: "Analysis completed." };
     await appendDealRun(dealId, {
@@ -362,6 +375,13 @@ export async function getDealOverrides(dealId, user = null) {
 export async function saveDealOverride(dealId, fieldName, value, user = null) {
   const overrides = await getDealOverrides(dealId, user);
   overrides[fieldName] = value;
+  if (fieldName === "revenue") {
+    console.log("[saveDealOverride] incoming revenue override", {
+      dealId,
+      userId: user?.id ?? null,
+      value,
+    });
+  }
   await writeOverrides(dealId, overrides, user);
   await refreshMaterializedDealArtifacts(dealId, user);
   return getDealWorkspace(dealId, user);
@@ -450,6 +470,16 @@ async function refreshMaterializedDealArtifacts(dealId, user = null) {
     JSON.stringify(materializedModelInput, null, 2),
     "utf-8"
   );
+
+  console.log("[refreshMaterializedDealArtifacts] wrote materialized artifacts", {
+    dealId,
+    userId: user?.id ?? null,
+    selectedRevenue: materializedReview?.fields?.revenue?.selected?.value ?? null,
+    selectedRevenueMethod: materializedReview?.fields?.revenue?.selected?.method ?? null,
+    modelInputRevenue: materializedModelInput?.revenue ?? null,
+    overrideRevenue: workspace?.overrides?.revenue ?? null,
+    revisionId,
+  });
 
   await writeMaterializedVersionSnapshot(dealId, revisionId, {
     review: materializedReview,
@@ -1183,30 +1213,50 @@ async function writeSupabaseOverrides(dealId, overrides, userId) {
     throw new Error("Supabase service role client is not configured.");
   }
 
-  const { error: deleteError } = await supabase
-    .from("user_overrides")
-    .delete()
-    .eq("deal_id", dealId)
-    .eq("user_id", userId);
-
-  if (deleteError) {
-    throw new Error(`Failed to clear Supabase overrides: ${deleteError.message}`);
-  }
-
-  const rows = Object.entries(overrides).map(([fieldName, overrideValue]) => ({
+  const nextRows = Object.entries(overrides).map(([fieldName, overrideValue]) => ({
     user_id: userId,
     deal_id: dealId,
     field_name: fieldName,
     override_value: overrideValue
   }));
 
-  if (rows.length === 0) {
+  const { data: existingRows, error: existingError } = await supabase
+    .from("user_overrides")
+    .select("field_name")
+    .eq("deal_id", dealId)
+    .eq("user_id", userId);
+
+  if (existingError) {
+    throw new Error(`Failed to load existing Supabase overrides: ${existingError.message}`);
+  }
+
+  const nextFieldNames = new Set(nextRows.map((row) => row.field_name));
+  const staleFieldNames = (existingRows ?? [])
+    .map((row) => row.field_name)
+    .filter((fieldName) => !nextFieldNames.has(fieldName));
+
+  if (staleFieldNames.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("user_overrides")
+      .delete()
+      .eq("deal_id", dealId)
+      .eq("user_id", userId)
+      .in("field_name", staleFieldNames);
+
+    if (deleteError) {
+      throw new Error(`Failed to clear Supabase overrides: ${deleteError.message}`);
+    }
+  }
+
+  if (nextRows.length === 0) {
     return;
   }
 
-  const { error: insertError } = await supabase.from("user_overrides").insert(rows);
-  if (insertError) {
-    throw new Error(`Failed to save Supabase overrides: ${insertError.message}`);
+  const { error: upsertError } = await supabase.from("user_overrides").upsert(nextRows, {
+    onConflict: "user_id,deal_id,field_name",
+  });
+  if (upsertError) {
+    throw new Error(`Failed to save Supabase overrides: ${upsertError.message}`);
   }
 }
 

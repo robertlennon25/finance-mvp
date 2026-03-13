@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   applyRecommendedEstimates,
   getDealDetail,
+  getDealWorkspace,
   getPipelineRunStatus,
   runDealPipeline
 } from "@/lib/server/deal-service";
@@ -23,6 +24,19 @@ export async function POST(request, { params }) {
     const maxChunks = Number.isFinite(Number(payload.maxChunks))
       ? Math.max(1, Math.min(8, Number(payload.maxChunks)))
       : 5;
+    const workspace = phase === "analysis"
+      ? await getDealWorkspace(params.dealId, user ?? null)
+      : null;
+
+    console.log("[pipeline-route] request", {
+      dealId: params.dealId,
+      phase,
+      applyEstimates,
+      maxChunks,
+      userId: user?.id ?? null,
+      selectedRevenue: workspace?.review?.fields?.revenue?.selected?.value ?? null,
+      selectedRevenueMethod: workspace?.review?.fields?.revenue?.selected?.method ?? null,
+    });
 
     if (phase === "analysis" && applyEstimates && isSupabasePersistenceConfigured()) {
       if (user) {

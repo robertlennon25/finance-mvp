@@ -56,6 +56,18 @@ def main() -> None:
         raise FileNotFoundError(f"Model input not found: {input_path}")
 
     extracted = json.loads(input_path.read_text(encoding="utf-8"))
+    print(
+        "[run_build_workbook_from_deal] model input snapshot:",
+        json.dumps(
+            {
+                "deal_id": args.deal_id,
+                "revenue": extracted.get("revenue"),
+                "entry_multiple": extracted.get("entry_multiple"),
+                "ebitda": extracted.get("ebitda"),
+                "shares_outstanding": extracted.get("shares_outstanding"),
+            }
+        ),
+    )
     assumptions = build_assumptions(extracted)
     projections = build_projections(extracted, assumptions)
     wacc_info = compute_wacc(extracted, assumptions)
