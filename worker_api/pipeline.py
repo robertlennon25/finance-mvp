@@ -51,11 +51,16 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
 
     if phase in {"analysis", "full"}:
         update_job(job_id, progress=75, message="Preparing model inputs")
-        if _has_field_candidates(deal_id):
+        if _has_prepared_model_input(deal_id):
+            _apply_overrides_to_existing_model_input(deal_id)
+        elif _has_field_candidates(deal_id):
             resolve_deal_fields(deal_id)
             prepare_model_inputs_for_deal(deal_id)
-        else:
             _apply_overrides_to_existing_model_input(deal_id)
+        else:
+            raise FileNotFoundError(
+                f"No prepared model input or candidates found for analysis run: {deal_id}"
+            )
         upload_review_artifacts(deal_id)
 
         update_job(job_id, progress=90, message="Building workbook")
@@ -107,6 +112,10 @@ def _artifact_storage_path(deal_id: str, file_name: str) -> str:
 
 def _has_field_candidates(deal_id: str) -> bool:
     return (NORMALIZED_EXTRACTIONS_ROOT / f"{deal_id}_field_candidates.json").exists()
+
+
+def _has_prepared_model_input(deal_id: str) -> bool:
+    return (RESOLVED_EXTRACTIONS_ROOT / f"{deal_id}_model_input.json").exists()
 
 
 def _apply_overrides_to_existing_model_input(deal_id: str) -> None:
