@@ -31,8 +31,12 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
             }
         ),
     )
+    print(f"[worker_pipeline] syncing documents for {deal_id}")
     synced = sync_deal_documents_from_supabase(deal_id)
+    print(f"[worker_pipeline] synced {synced} documents for {deal_id}")
+    print(f"[worker_pipeline] syncing prior artifacts for {deal_id}")
     artifact_sync_count = sync_deal_artifacts_from_supabase(deal_id)
+    print(f"[worker_pipeline] synced {artifact_sync_count} prior artifacts for {deal_id}")
     update_job(
         job_id,
         status="running",
@@ -57,11 +61,25 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
         update_job(job_id, progress=10, message=f"Synced {override_count} override(s)")
 
     if phase in {"extract", "full"}:
+        print(f"[worker_pipeline] entering extract phase for {deal_id}")
         update_job(job_id, progress=15, message="Reading inputs")
+        print(f"[worker_pipeline] calling run_local_ingestion for {deal_id}")
         run_local_ingestion(deal_id)
+        print(f"[worker_pipeline] completed run_local_ingestion for {deal_id}")
 
         update_job(job_id, progress=40, message="Extracting with GPT-4.1 mini")
+        print(f"[worker_pipeline] calling run_chunk_extraction for {deal_id}")
         extraction_result = run_chunk_extraction(deal_id=deal_id, max_chunks=max_chunks)
+        print(
+            "[worker_pipeline] completed run_chunk_extraction",
+            json.dumps(
+                {
+                    "deal_id": deal_id,
+                    "candidate_count": extraction_result.get("candidate_count"),
+                    "cached": extraction_result.get("cached"),
+                }
+            ),
+        )
 
         update_job(
             job_id,
@@ -69,8 +87,11 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
             message="Resolving extracted fields",
             cached=bool(extraction_result.get("cached", False)),
         )
+        print(f"[worker_pipeline] calling resolve_deal_fields for {deal_id}")
         resolve_deal_fields(deal_id)
+        print(f"[worker_pipeline] calling prepare_model_inputs_for_deal for {deal_id}")
         prepare_model_inputs_for_deal(deal_id)
+        print(f"[worker_pipeline] uploading review artifacts for {deal_id}")
         upload_review_artifacts(deal_id)
 
     if phase in {"analysis", "full"}:
