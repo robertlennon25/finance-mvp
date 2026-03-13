@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from pathlib import Path
 
 import json
@@ -11,6 +12,8 @@ from worker_api.config import (
     SUPABASE_URL,
     is_supabase_worker_configured,
 )
+
+DOWNLOAD_TIMEOUT_SECONDS = 60
 
 
 def sync_deal_documents_from_supabase(deal_id: str) -> int:
@@ -36,6 +39,7 @@ def sync_deal_documents_from_supabase(deal_id: str) -> int:
     )
     rows = response.data or []
     synced = 0
+    print(f"[supabase_sync] found {len(rows)} document rows for {deal_id}")
 
     for row in rows:
         file_name = row["file_name"]
@@ -44,10 +48,23 @@ def sync_deal_documents_from_supabase(deal_id: str) -> int:
         target_path = inbox_dir / file_name
 
         if target_path.exists():
+            print(f"[supabase_sync] skipping existing document {file_name} for {deal_id}")
             continue
 
-        download = supabase.storage.from_(bucket).download(storage_path)
+        print(
+            f"[supabase_sync] downloading document for {deal_id}: "
+            f"bucket={bucket} path={storage_path} target={target_path.name}"
+        )
+        download = _download_with_timeout(
+            lambda: supabase.storage.from_(bucket).download(storage_path),
+            timeout_seconds=DOWNLOAD_TIMEOUT_SECONDS,
+            label=f"document {storage_path}",
+        )
         target_path.write_bytes(download)
+        print(
+            f"[supabase_sync] downloaded document for {deal_id}: "
+            f"{target_path.name} ({len(download)} bytes)"
+        )
         synced += 1
 
     return synced
@@ -132,11 +149,36 @@ def sync_deal_artifacts_from_supabase(deal_id: str) -> int:
     for file_name, target_path in artifact_targets.items():
         storage_path = f"artifacts/{deal_id}/{file_name}"
         try:
-            download = supabase.storage.from_(bucket).download(storage_path)
+            print(f"[supabase_sync] checking artifact {storage_path}")
+            download = _download_with_timeout(
+                lambda storage_path=storage_path: supabase.storage.from_(bucket).download(storage_path),
+                timeout_seconds=DOWNLOAD_TIMEOUT_SECONDS,
+                label=f"artifact {storage_path}",
+            )
         except Exception:  # noqa: BLE001
             continue
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_bytes(download)
+        print(
+            f"[supabase_sync] synced artifact for {deal_id}: "
+            f"{file_name} ({len(download)} bytes)"
+        )
         synced += 1
 
     return synced
+
+
+def _download_with_timeout(fetcher, timeout_seconds: int, label: str) -> bytes:
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(fetcher)
+        try:
+            result = future.result(timeout=timeout_seconds)
+        except FutureTimeoutError as exc:
+            raise TimeoutError(
+                f"Timed out after {timeout_seconds}s while downloading {label} from Supabase Storage."
+            ) from exc
+
+    if not isinstance(result, (bytes, bytearray)):
+        raise RuntimeError(f"Unexpected download payload type for {label}: {type(result)!r}")
+
+    return bytes(result)
