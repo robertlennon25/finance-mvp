@@ -26,17 +26,47 @@ def create_job(job_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         **payload,
     }
     _write(job_id, job)
+    print(
+        "[job_store] create_job",
+        {
+            "job_id": job_id,
+            "deal_id": job.get("deal_id"),
+            "phase": job.get("phase"),
+            "status": job.get("status"),
+            "progress": job.get("progress"),
+        },
+    )
     return job
 
 
 def read_job(job_id: str) -> Dict[str, Any] | None:
     cloud_job = _read_from_supabase(job_id)
     if cloud_job:
+        print(
+            "[job_store] read_job from supabase",
+            {
+                "job_id": job_id,
+                "status": cloud_job.get("status"),
+                "progress": cloud_job.get("progress"),
+                "updated_at": cloud_job.get("updated_at"),
+            },
+        )
         return cloud_job
     path = _path(job_id)
     if not path.exists():
+        print(f"[job_store] read_job missing {job_id}")
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    local_job = json.loads(path.read_text(encoding="utf-8"))
+    print(
+        "[job_store] read_job from local",
+        {
+            "job_id": job_id,
+            "status": local_job.get("status"),
+            "progress": local_job.get("progress"),
+            "updated_at": local_job.get("updated_at"),
+        },
+    )
+    return local_job
 
 
 def update_job(job_id: str, **updates: Any) -> Dict[str, Any]:
@@ -46,6 +76,16 @@ def update_job(job_id: str, **updates: Any) -> Dict[str, Any]:
     job.update(updates)
     job["updated_at"] = _now()
     _write(job_id, job)
+    print(
+        "[job_store] update_job",
+        {
+            "job_id": job_id,
+            "status": job.get("status"),
+            "progress": job.get("progress"),
+            "message": job.get("message"),
+            "updated_at": job.get("updated_at"),
+        },
+    )
     return job
 
 
@@ -111,6 +151,15 @@ def _write_to_supabase(payload: Dict[str, Any]) -> None:
     error = getattr(result, "error", None)
     if error:
         raise RuntimeError(f"Failed to write worker job to Supabase: {error}")
+    print(
+        "[job_store] wrote job to supabase",
+        {
+            "job_id": db_payload.get("job_id"),
+            "status": db_payload.get("status"),
+            "progress": db_payload.get("progress"),
+            "updated_at": db_payload.get("updated_at"),
+        },
+    )
 
 
 def _normalize_supabase_row(row: Dict[str, Any]) -> Dict[str, Any]:

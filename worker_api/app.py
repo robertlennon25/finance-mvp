@@ -55,7 +55,18 @@ def get_pipeline_run(job_id: str, authorization: str | None = Header(default=Non
 
     job = read_job(job_id)
     if not job:
+        print(f"[worker_api] job lookup failed for {job_id}")
         raise HTTPException(status_code=404, detail="Job not found")
+    print(
+        "[worker_api] returning job status",
+        {
+            "job_id": job_id,
+            "status": job.get("status"),
+            "progress": job.get("progress"),
+            "message": job.get("message"),
+            "updated_at": job.get("updated_at"),
+        },
+    )
     return job
 
 
