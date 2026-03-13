@@ -20,6 +20,17 @@ from worker_api.supabase_sync import (
 
 
 def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | None, user_id: str | None = None) -> None:
+    print(
+        "[worker_pipeline] job start",
+        json.dumps(
+            {
+                "job_id": job_id,
+                "deal_id": deal_id,
+                "phase": phase,
+                "user_id": user_id,
+            }
+        ),
+    )
     synced = sync_deal_documents_from_supabase(deal_id)
     artifact_sync_count = sync_deal_artifacts_from_supabase(deal_id)
     update_job(
@@ -29,6 +40,19 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
         message=f"Synced {synced} document(s) and {artifact_sync_count} artifact(s) from Supabase Storage",
     )
     override_count = sync_deal_overrides_from_supabase(deal_id, user_id)
+    override_path = OVERRIDES_ROOT / f"{deal_id}_overrides.json"
+    if override_path.exists():
+        override_payload = json.loads(override_path.read_text(encoding="utf-8"))
+        print(
+            "[worker_pipeline] synced overrides",
+            json.dumps(
+                {
+                    "deal_id": deal_id,
+                    "override_count": override_count,
+                    "override_revenue": override_payload.get("revenue"),
+                }
+            ),
+        )
     if override_count:
         update_job(job_id, progress=10, message=f"Synced {override_count} override(s)")
 
@@ -52,14 +76,29 @@ def run_pipeline_job(job_id: str, deal_id: str, phase: str, max_chunks: int | No
     if phase in {"analysis", "full"}:
         update_job(job_id, progress=75, message="Preparing model inputs")
         if _has_prepared_model_input(deal_id):
+            print(f"[worker_pipeline] using prepared model input for {deal_id}")
             _apply_overrides_to_existing_model_input(deal_id)
         elif _has_field_candidates(deal_id):
+            print(f"[worker_pipeline] rebuilding model input from candidates for {deal_id}")
             resolve_deal_fields(deal_id)
             prepare_model_inputs_for_deal(deal_id)
             _apply_overrides_to_existing_model_input(deal_id)
         else:
             raise FileNotFoundError(
                 f"No prepared model input or candidates found for analysis run: {deal_id}"
+            )
+        model_input_path = RESOLVED_EXTRACTIONS_ROOT / f"{deal_id}_model_input.json"
+        if model_input_path.exists():
+            model_input_payload = json.loads(model_input_path.read_text(encoding="utf-8"))
+            print(
+                "[worker_pipeline] model input before build",
+                json.dumps(
+                    {
+                        "deal_id": deal_id,
+                        "revenue": model_input_payload.get("revenue"),
+                        "entry_multiple": model_input_payload.get("entry_multiple"),
+                    }
+                ),
             )
         upload_review_artifacts(deal_id)
 
@@ -137,6 +176,17 @@ def _apply_overrides_to_existing_model_input(deal_id: str) -> None:
 
     for field_name, value in overrides.items():
         model_input[field_name] = value
+
+    print(
+        "[worker_pipeline] apply overrides to model input",
+        json.dumps(
+            {
+                "deal_id": deal_id,
+                "override_revenue": overrides.get("revenue"),
+                "resulting_revenue": model_input.get("revenue"),
+            }
+        ),
+    )
 
     model_input_path.write_text(json.dumps(model_input, indent=2), encoding="utf-8")
 

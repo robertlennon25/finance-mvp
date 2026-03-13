@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyEstimates = false }) {
@@ -10,8 +10,14 @@ export function PipelineRunner({ dealId, phase, steps, targetHref, title, applyE
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
+    if (hasStartedRef.current) {
+      return;
+    }
+    hasStartedRef.current = true;
+
     let cancelled = false;
     let pollTimeoutId = null;
 

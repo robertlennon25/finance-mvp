@@ -269,6 +269,28 @@ export async function createDealFromManualInputs(dealName, inputs, user = null) 
 
 export async function runDealPipeline(dealId, { phase = "extract", maxChunks = 5, userId = null } = {}) {
   if (isRailwayWorkerConfigured()) {
+    if (phase === "analysis") {
+      const user = userId ? { id: userId } : null;
+      if (userId) {
+        const overrides = await getDealOverrides(dealId, user);
+        await fs.mkdir(OVERRIDES_ROOT, { recursive: true });
+        await fs.writeFile(getOverridePath(dealId), JSON.stringify(overrides, null, 2), "utf-8");
+      }
+      await refreshMaterializedDealArtifacts(dealId, user);
+      const modelInputPath = path.join(RESOLVED_ROOT, `${dealId}_model_input.json`);
+      const modelInput = JSON.parse(await fs.readFile(modelInputPath, "utf-8"));
+      console.log("[runDealPipeline] before remote worker trigger", {
+        dealId,
+        phase,
+        userId,
+        modelInputRevenue: modelInput.revenue ?? null,
+      });
+      await syncLocalArtifactsToSupabase(dealId, [
+        `${dealId}_review_payload.json`,
+        `${dealId}_model_input.json`,
+        `${dealId}_resolved.json`,
+      ]);
+    }
     return triggerRailwayPipeline(dealId, { phase, maxChunks, userId });
   }
 
