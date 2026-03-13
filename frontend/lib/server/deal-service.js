@@ -363,6 +363,7 @@ export async function saveDealOverride(dealId, fieldName, value, user = null) {
   const overrides = await getDealOverrides(dealId, user);
   overrides[fieldName] = value;
   await writeOverrides(dealId, overrides, user);
+  await refreshMaterializedDealArtifacts(dealId, user);
   return getDealWorkspace(dealId, user);
 }
 
@@ -370,6 +371,7 @@ export async function clearDealOverride(dealId, fieldName, user = null) {
   const overrides = await getDealOverrides(dealId, user);
   delete overrides[fieldName];
   await writeOverrides(dealId, overrides, user);
+  await refreshMaterializedDealArtifacts(dealId, user);
   return getDealWorkspace(dealId, user);
 }
 
@@ -400,6 +402,7 @@ export async function applyRecommendedEstimates(dealId, user = null) {
   }
 
   await writeOverrides(dealId, overrides, user);
+  await refreshMaterializedDealArtifacts(dealId, user);
   return {
     workspace: await getDealWorkspace(dealId, user),
     appliedCount,
@@ -407,14 +410,59 @@ export async function applyRecommendedEstimates(dealId, user = null) {
 }
 
 async function writeOverrides(dealId, overrides, user = null) {
-  if (user?.id) {
-    await writeSupabaseOverrides(dealId, overrides, user.id);
-    return;
-  }
-
   await fs.mkdir(OVERRIDES_ROOT, { recursive: true });
   const overridePath = getOverridePath(dealId);
   await fs.writeFile(overridePath, JSON.stringify(overrides, null, 2), "utf-8");
+
+  if (user?.id) {
+    await writeSupabaseOverrides(dealId, overrides, user.id);
+  }
+}
+
+async function refreshMaterializedDealArtifacts(dealId, user = null) {
+  const workspace = await getDealWorkspace(dealId, user);
+  if (!workspace?.review?.fields) {
+    return;
+  }
+
+  const revisionId = new Date().toISOString();
+  const materializedReview = {
+    ...workspace.review,
+    artifact_revision_id: revisionId,
+    artifact_revision_reason: "override_update",
+  };
+  const materializedResolved = buildResolvedFromReview(materializedReview, dealId, revisionId);
+  const materializedModelInput = buildModelInputFromReview(materializedReview);
+
+  await fs.mkdir(RESOLVED_ROOT, { recursive: true });
+  await fs.writeFile(
+    path.join(RESOLVED_ROOT, `${dealId}_review_payload.json`),
+    JSON.stringify(materializedReview, null, 2),
+    "utf-8"
+  );
+  await fs.writeFile(
+    path.join(RESOLVED_ROOT, `${dealId}_resolved.json`),
+    JSON.stringify(materializedResolved, null, 2),
+    "utf-8"
+  );
+  await fs.writeFile(
+    path.join(RESOLVED_ROOT, `${dealId}_model_input.json`),
+    JSON.stringify(materializedModelInput, null, 2),
+    "utf-8"
+  );
+
+  await writeMaterializedVersionSnapshot(dealId, revisionId, {
+    review: materializedReview,
+    resolved: materializedResolved,
+    model_input: materializedModelInput,
+  });
+
+  await invalidateWorkbookArtifacts(dealId);
+  await syncLocalArtifactsToSupabase(dealId, [
+    `${dealId}_review_payload.json`,
+    `${dealId}_model_input.json`,
+    `${dealId}_resolved.json`,
+  ]);
 }
 
 export async function getDealDocuments(dealId) {
@@ -952,6 +1000,20 @@ async function hasSupabaseArtifact(dealId, fileName) {
   return Boolean(!error && data);
 }
 
+async function deleteSupabaseArtifacts(dealId, fileNames) {
+  const supabase = getSupabaseServiceRoleClient();
+  if (!supabase || fileNames.length === 0) {
+    return;
+  }
+
+  const bucket = getSupabaseStorageBucket();
+  const storagePaths = fileNames.map((fileName) => buildSupabaseArtifactPath(dealId, fileName));
+  const { error } = await supabase.storage.from(bucket).remove(storagePaths);
+  if (error) {
+    throw new Error(`Failed to clear stale Supabase artifacts: ${error.message}`);
+  }
+}
+
 function buildSupabaseStoragePath({ userId, dealId, fileName }) {
   const owner = userId || "anonymous";
   return `private/${owner}/${dealId}/${fileName}`;
@@ -1008,6 +1070,67 @@ function applyOverridesToReview(review, overrides) {
     ...review,
     fields,
   };
+}
+
+function buildModelInputFromReview(review) {
+  const modelInput = {};
+
+  for (const [fieldName, fieldState] of Object.entries(review?.fields ?? {})) {
+    modelInput[fieldName] = fieldState?.selected?.value ?? null;
+  }
+
+  return modelInput;
+}
+
+function buildResolvedFromReview(review, dealId, revisionId) {
+  const resolvedFields = {};
+
+  for (const [fieldName, fieldState] of Object.entries(review?.fields ?? {})) {
+    resolvedFields[fieldName] = {
+      ...(fieldState?.selected ?? {}),
+    };
+  }
+
+  return {
+    deal_id: dealId,
+    artifact_revision_id: revisionId,
+    resolved_fields: resolvedFields,
+  };
+}
+
+async function writeMaterializedVersionSnapshot(dealId, revisionId, payload) {
+  const safeRevisionId = revisionId.replace(/[:.]/g, "-");
+  const versionRoot = path.join(PIPELINE_STATE_ROOT, "deal_versions", dealId);
+  await fs.mkdir(versionRoot, { recursive: true });
+  await fs.writeFile(
+    path.join(versionRoot, `${safeRevisionId}.json`),
+    JSON.stringify(
+      {
+        deal_id: dealId,
+        revision_id: revisionId,
+        created_at: revisionId,
+        payload,
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+}
+
+async function invalidateWorkbookArtifacts(dealId) {
+  const localArtifacts = [
+    path.join(OUTPUTS_ROOT, `${dealId}_valuation_model.xlsx`),
+    path.join(OUTPUTS_ROOT, `${dealId}_summary.json`),
+    path.join(OUTPUTS_ROOT, `${dealId}_diagnostics.json`),
+  ];
+
+  await Promise.all(localArtifacts.map((filePath) => fs.rm(filePath, { force: true })));
+  await deleteSupabaseArtifacts(dealId, [
+    `${dealId}_valuation_model.xlsx`,
+    `${dealId}_summary.json`,
+    `${dealId}_diagnostics.json`,
+  ]);
 }
 
 async function getWorkbookPath(dealId) {

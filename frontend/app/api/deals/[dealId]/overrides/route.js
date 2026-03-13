@@ -8,15 +8,9 @@ import { isSupabasePersistenceConfigured } from "@/lib/supabase/config";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function POST(request, { params }) {
-  if (!isSupabasePersistenceConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase override persistence is not configured." },
-      { status: 503 }
-    );
-  }
+  const user = isSupabasePersistenceConfigured() ? await getAuthenticatedUser() : null;
 
-  const user = await getAuthenticatedUser();
-  if (!user) {
+  if (isSupabasePersistenceConfigured() && !user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
@@ -35,15 +29,9 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  if (!isSupabasePersistenceConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase override persistence is not configured." },
-      { status: 503 }
-    );
-  }
+  const user = isSupabasePersistenceConfigured() ? await getAuthenticatedUser() : null;
 
-  const user = await getAuthenticatedUser();
-  if (!user) {
+  if (isSupabasePersistenceConfigured() && !user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 

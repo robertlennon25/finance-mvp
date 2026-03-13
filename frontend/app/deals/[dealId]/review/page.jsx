@@ -11,15 +11,18 @@ import { getAuthenticatedUser } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export default async function DealReviewPage({ params }) {
-  const user = await getAuthenticatedUser();
+  const supabaseEnabled = isSupabasePersistenceConfigured();
+  const user = supabaseEnabled ? await getAuthenticatedUser() : null;
   const workspace = await getDealWorkspace(
     params.dealId,
-    user && isSupabasePersistenceConfigured() ? user : null
+    user && supabaseEnabled ? user : null
   );
 
   if (!workspace) {
     notFound();
   }
+
+  const canOverride = !supabaseEnabled || Boolean(user);
 
   return (
     <AppShell
@@ -31,20 +34,20 @@ export default async function DealReviewPage({ params }) {
         <Link
           className="override-button primary"
           href={`/deals/${workspace.dealId}/process?phase=analysis${
-            user && isSupabasePersistenceConfigured() ? "&applyEstimates=1" : ""
+            user && supabaseEnabled ? "&applyEstimates=1" : ""
           }`}
         >
           Ready, perform analysis
         </Link>
         <ApplyEstimatesButton
           dealId={workspace.dealId}
-          disabled={!(user && isSupabasePersistenceConfigured())}
+          disabled={!(user && supabaseEnabled)}
         />
         <Link className="override-button" href={`/deals/${workspace.dealId}`}>
           Back to documents
         </Link>
       </div>
-      <ReviewWorkspace workspace={workspace} user={user && isSupabasePersistenceConfigured() ? user : null} />
+      <ReviewWorkspace workspace={workspace} user={user} canOverride={canOverride} />
     </AppShell>
   );
 }

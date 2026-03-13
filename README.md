@@ -36,6 +36,16 @@ AI-assisted LBO modeling workflow with:
 - [`supabase/`](/Users/robertlennon/Desktop/finance_ai_mvp/supabase): SQL migrations and setup notes
 - [`docs/`](/Users/robertlennon/Desktop/finance_ai_mvp/docs): architecture, deployment, roadmap, and retained context
 
+## Start here for debugging
+
+If you need to understand the repo quickly or debug deploy issues, read these first:
+
+1. [`docs/repo_pipeline_guide.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/repo_pipeline_guide.md)
+2. [`docs/data_routing_reference.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/data_routing_reference.md)
+3. [`frontend/lib/server/deal-service.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/server/deal-service.js)
+4. [`worker_api/pipeline.py`](/Users/robertlennon/Desktop/finance_ai_mvp/worker_api/pipeline.py)
+5. [`document_pipeline/services/resolve_fields.py`](/Users/robertlennon/Desktop/finance_ai_mvp/document_pipeline/services/resolve_fields.py)
+
 ## Local setup
 
 ### Python
@@ -136,6 +146,8 @@ See:
 
 - [`docs/current_state.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/current_state.md)
 - [`docs/deployment_architecture.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/deployment_architecture.md)
+- [`docs/repo_pipeline_guide.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/repo_pipeline_guide.md)
+- [`docs/data_routing_reference.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/data_routing_reference.md)
 - [`docs/supabase_setup.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/supabase_setup.md)
 - [`docs/railway_deploy.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/railway_deploy.md)
 - [`docs/memo_generation_plan.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/memo_generation_plan.md)
@@ -153,9 +165,9 @@ See:
 
 If context is lost, re-read these first:
 
-1. [`docs/current_state.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/current_state.md)
-2. [`docs/deployment_architecture.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/deployment_architecture.md)
-3. [`docs/roadmap.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/roadmap.md)
-4. [`frontend/README.md`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/README.md)
-5. [`document_pipeline/README.md`](/Users/robertlennon/Desktop/finance_ai_mvp/document_pipeline/README.md)
-6. [`excel_model/README.md`](/Users/robertlennon/Desktop/finance_ai_mvp/excel_model/README.md)
+1. [`docs/repo_pipeline_guide.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/repo_pipeline_guide.md)
+2. [`docs/data_routing_reference.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/data_routing_reference.md)
+3. [`docs/deployment_architecture.md`](/Users/robertlennon/Desktop/finance_ai_mvp/docs/deployment_architecture.md)
+4. [`frontend/lib/server/deal-service.js`](/Users/robertlennon/Desktop/finance_ai_mvp/frontend/lib/server/deal-service.js)
+5. [`worker_api/pipeline.py`](/Users/robertlennon/Desktop/finance_ai_mvp/worker_api/pipeline.py)
+6. [`document_pipeline/services/resolve_fields.py`](/Users/robertlennon/Desktop/finance_ai_mvp/document_pipeline/services/resolve_fields.py)

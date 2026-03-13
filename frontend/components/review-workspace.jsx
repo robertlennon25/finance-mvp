@@ -1,7 +1,7 @@
 import { OverrideForm } from "@/components/override-form";
 import { formatFieldValue } from "@/lib/formatters";
 
-export function ReviewWorkspace({ workspace, user }) {
+export function ReviewWorkspace({ workspace, user, canOverride = false }) {
   const fields = Object.entries(workspace.review.fields);
   const overrides = workspace.overrides ?? {};
 
@@ -14,9 +14,9 @@ export function ReviewWorkspace({ workspace, user }) {
             Canonical units: currency values are shown in full dollars, share counts in full shares,
             percentages as decimals, and multiples as raw x values.
           </p>
-          {!user ? (
+          {!canOverride ? (
             <p className="meta review-note">
-              Sign in with Google to persist overrides in Supabase. You can still inspect all
+              Sign in with Google to persist overrides. You can still inspect all
               extracted values before analysis.
             </p>
           ) : null}
@@ -132,7 +132,7 @@ export function ReviewWorkspace({ workspace, user }) {
                           options[0]?.value
                         }
                         topOptionLabel={fieldState?.recommended_estimate ? "Use Estimate" : "Use Top Candidate"}
-                        disabled={!user}
+                        disabled={!canOverride}
                       />
                     </td>
                   </tr>
